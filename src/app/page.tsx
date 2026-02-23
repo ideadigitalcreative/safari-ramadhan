@@ -113,7 +113,7 @@ export default function LandingPage() {
             </div>
             <div>
               <h1 className="font-bold text-lg gradient-text leading-tight">Safari Ramadhan</h1>
-              <p className="text-[10px] text-dark-500 uppercase tracking-widest font-black">Palu 1447H / 2026M</p>
+              <p className="text-[10px] text-dark-500 uppercase tracking-widest font-black">1447H / 2026M</p>
             </div>
           </div>
           <Link href="/login" className="btn-secondary py-2 px-5 text-sm rounded-xl flex items-center gap-2">
@@ -127,14 +127,14 @@ export default function LandingPage() {
         {/* Hero Section */}
         <div className="text-center mb-16 animate-in fade-in slide-in-from-top-4 duration-700">
           <span className="inline-block px-4 py-1.5 rounded-full bg-primary-50 text-primary-600 text-xs font-black uppercase tracking-widest mb-4 border border-primary-100">
-            Jadwal Resmi Safari Ramadhan
+            Jadwal Safari Ramadhan 2026 Satu Hati Palestina
           </span>
           <h2 className="text-4xl md:text-6xl font-black text-dark-900 mb-6 leading-tight">
             Eksplorasi Perjalanan <br />
             <span className="gradient-text">Dakwah & Safari</span>
           </h2>
           <p className="text-dark-500 max-w-2xl mx-auto text-lg">
-            Ikuti perjalanan safari ramadhan di berbagai masjid di Kota Palu.
+            Ikuti perjalanan safari ramadhan di berbagai masjid.
             Temukan jadwal tausiyah, subuh berjamaah, dan kegiatan lainnya selama bulan suci.
           </p>
         </div>
@@ -291,23 +291,23 @@ export default function LandingPage() {
           <div className="space-y-12">
             {Object.entries(groupedJadwal).map(([date, items]) => (
               <div key={date} id={`date-${date}`} className="scroll-mt-40 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <div className="flex items-center gap-6 mb-8 group">
-                  <div className="flex flex-col items-center justify-center w-20 h-24 bg-white rounded-3xl shadow-xl shadow-primary-200/20 border border-dark-100 group-hover:bg-primary-600 transition-colors duration-300">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-dark-400 group-hover:text-white/60 mb-1">
+                <div className="flex items-center gap-4 mb-6 group">
+                  <div className="flex flex-col items-center justify-center w-16 h-20 bg-white rounded-2xl shadow-xl shadow-primary-200/20 border border-dark-100 group-hover:bg-primary-600 transition-colors duration-300">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-dark-400 group-hover:text-white/60 mb-0.5">
                       {format(new Date(date), 'MMM', { locale: localeId })}
                     </span>
-                    <span className="text-3xl font-black text-dark-900 group-hover:text-white leading-none">
+                    <span className="text-2xl font-black text-dark-900 group-hover:text-white leading-none">
                       {format(new Date(date), 'd')}
                     </span>
-                    <span className="text-[10px] font-black text-primary-600 group-hover:text-white/80 mt-1 uppercase">
+                    <span className="text-[9px] font-black text-primary-600 group-hover:text-white/80 mt-0.5 uppercase">
                       {format(new Date(date), 'eee', { locale: localeId })}
                     </span>
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-2xl font-black text-dark-900 mb-1">
+                    <h3 className="text-xl font-black text-dark-900 mb-0.5">
                       {format(new Date(date), 'EEEE, d MMMM yyyy', { locale: localeId })}
                     </h3>
-                    <p className="text-sm font-bold text-primary-600 uppercase tracking-wider">
+                    <p className="text-xs font-bold text-primary-600 uppercase tracking-wider">
                       Ramadhan Ke-{items[0].ramadhan_ke}
                     </p>
                   </div>
@@ -318,27 +318,27 @@ export default function LandingPage() {
                     const config = WAKTU_LABELS[item.waktu_sholat] || WAKTU_LABELS.subuh;
                     const Icon = config.icon;
                     return (
-                      <div key={item.id} className="glass-card p-6 border-l-8 hover:shadow-2xl hover:scale-[1.02]" style={{ borderLeftColor: `var(--${config.color.split('-')[1]}-500)` }}>
-                        <div className="flex items-start justify-between mb-6">
-                          <div className={`w-12 h-12 rounded-2xl ${config.bgColor} flex items-center justify-center`}>
-                            <Icon className={`w-6 h-6 ${config.color}`} />
+                      <div key={item.id} className="glass-card p-5 border-l-4 hover:shadow-xl hover:scale-[1.02]" style={{ borderLeftColor: `var(--${config.color.split('-')[1]}-500)` }}>
+                        <div className="flex items-start justify-between mb-4">
+                          <div className={`w-10 h-10 rounded-xl ${config.bgColor} flex items-center justify-center`}>
+                            <Icon className={`w-5 h-5 ${config.color}`} />
                           </div>
-                          <span className={`badge ${getStatusColor(item.status)}`}>
+                          <span className={`badge py-0.5 px-2 text-[10px] ${getStatusColor(item.status)}`}>
                             {item.status === 'sudah_dilaksanakan' ? <CheckCircle2 className="w-3 h-3 mr-1" /> : <Clock className="w-3 h-3 mr-1" />}
                             {getStatusLabel(item.status)}
                           </span>
                         </div>
-                        <h4 className="text-xl font-bold text-dark-900 mb-3 leading-tight">{item.nama_masjid}</h4>
+                        <h4 className="text-lg font-bold text-dark-900 mb-2 leading-tight">{item.nama_masjid}</h4>
                         {item.alamat && (
-                          <p className="text-sm text-dark-500 flex items-start gap-2 mb-4 italic">
-                            <MapPin className="w-4 h-4 mt-0.5 text-primary-500 shrink-0" />
+                          <p className="text-xs text-dark-500 flex items-start gap-1.5 mb-4 italic">
+                            <MapPin className="w-3.5 h-3.5 mt-0.5 text-primary-500 shrink-0" />
                             {item.alamat}
                           </p>
                         )}
-                        <div className="pt-4 border-t border-dark-50 flex items-center justify-between">
-                          <span className={`text-xs font-black uppercase tracking-widest ${config.color}`}>Waktu {config.label}</span>
-                          <Link href={`#`} className="text-primary-600 text-[10px] font-black uppercase tracking-widest flex items-center gap-1 hover:gap-2 transition-all">
-                            Detail Masjid <ArrowRight className="w-3 h-3" />
+                        <div className="pt-3 border-t border-dark-50 flex items-center justify-between">
+                          <span className={`text-[10px] font-black uppercase tracking-widest ${config.color}`}>Waktu {config.label}</span>
+                          <Link href={`#`} className="text-primary-600 text-[9px] font-black uppercase tracking-widest flex items-center gap-1 hover:gap-1.5 transition-all">
+                            Detail <ArrowRight className="w-3 h-3" />
                           </Link>
                         </div>
                       </div>
