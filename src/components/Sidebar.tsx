@@ -21,7 +21,7 @@ import { supabase } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
 
 const navItems = [
-    { href: '/', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/jadwal', label: 'Jadwal Safari', icon: Calendar },
     { href: '/donasi', label: 'Pencatatan Donasi', icon: Heart },
     { href: '/donatur', label: 'Manajemen Donatur', icon: Users },

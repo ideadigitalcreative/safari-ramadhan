@@ -42,14 +42,19 @@ export const updateSession = async (request: NextRequest) => {
         const { data: { user } } = await supabase.auth.getUser();
 
         // PROTECTED ROUTES LOGIC
-        // If user is not logged in and trying to access anything other than login/auth
-        if (!user && !request.nextUrl.pathname.startsWith('/login') && !request.nextUrl.pathname.startsWith('/auth')) {
+        // If user is not logged in and trying to access anything other than login/auth/landing
+        const isPublicPath =
+            request.nextUrl.pathname === '/' ||
+            request.nextUrl.pathname.startsWith('/login') ||
+            request.nextUrl.pathname.startsWith('/auth');
+
+        if (!user && !isPublicPath) {
             return NextResponse.redirect(new URL('/login', request.url));
         }
 
         // If user is logged in and trying to access login page
         if (user && request.nextUrl.pathname.startsWith('/login')) {
-            return NextResponse.redirect(new URL('/', request.url));
+            return NextResponse.redirect(new URL('/dashboard', request.url));
         }
 
         return response;

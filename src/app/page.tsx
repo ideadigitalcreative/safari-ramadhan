@@ -1,502 +1,376 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import Sidebar from '@/components/Sidebar';
-import StatCard from '@/components/StatCard';
-import { StatSkeleton } from '@/components/LoadingSkeleton';
 import { supabase } from '@/lib/supabase';
-import { formatCurrency, formatShortDate, getStatusColor, getStatusLabel, formatNumber } from '@/lib/utils';
+import { getStatusColor, getStatusLabel, formatNumber } from '@/lib/utils';
+import { JadwalSafari } from '@/types/database';
 import {
-  Heart,
-  Handshake,
-  Users,
-  Calendar,
-  TrendingUp,
+  Calendar as CalendarIcon,
   MapPin,
-  ArrowRight,
-  Landmark,
+  CheckCircle2,
+  Clock,
   Sunrise,
   Sun,
   Moon,
+  ArrowRight,
+  Search,
+  Filter,
+  Star,
+  LogIn,
 } from 'lucide-react';
-import Link from 'next/link';
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-} from 'recharts';
+  format,
+  startOfMonth,
+  endOfMonth,
+  startOfWeek,
+  endOfWeek,
+  eachDayOfInterval,
+  isSameMonth,
+  isSameDay,
+} from 'date-fns';
+import { id as localeId } from 'date-fns/locale';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
-interface DashboardData {
-  totalDonasi: number;
-  totalKomitmenAktif: number;
-  jumlahDonatur: number;
-  jadwalTerdekat: {
-    id: string;
-    tanggal: string;
-    ramadhan_ke: number;
-    waktu_sholat: string;
-    nama_masjid: string;
-    status: string;
-  }[];
-  donasiPerMasjid: {
-    nama_masjid: string;
-    total: number;
-  }[];
-  recentDonasi: {
-    id: string;
-    tanggal: string;
-    nominal: number;
-    nama_donatur: string;
-    nama_masjid: string;
-    metode: string;
-  }[];
-  donasiByMetode: {
-    name: string;
-    value: number;
-  }[];
-  komitmenProgress: {
-    name: string;
-    value: number;
-  }[];
-}
+const WAKTU_LABELS: Record<string, { label: string; icon: typeof Sunrise; color: string; bgColor: string }> = {
+  subuh: { label: 'Subuh', icon: Sunrise, color: 'text-blue-600', bgColor: 'bg-blue-50' },
+  dzuhur: { label: 'Dzuhur', icon: Sun, color: 'text-amber-600', bgColor: 'bg-amber-50' },
+  isya: { label: 'Isya', icon: Moon, color: 'text-indigo-600', bgColor: 'bg-indigo-50' },
+};
 
-const CHART_COLORS = ['#7c3aed', '#f97316', '#3b82f6', '#10b981', '#f43f5e', '#06b6d4', '#ec4899'];
-
-export default function DashboardPage() {
-  const [data, setData] = useState<DashboardData | null>(null);
+export default function LandingPage() {
+  const [jadwalList, setJadwalList] = useState<JadwalSafari[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterWaktu, setFilterWaktu] = useState('semua');
 
-  const fetchDashboardData = useCallback(async () => {
+  // Calendar state
+  const feb2026 = new Date(2026, 1, 1);
+  const mar2026 = new Date(2026, 2, 1);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const router = useRouter();
+
+  const fetchJadwal = useCallback(async () => {
+    setLoading(true);
     try {
-      // Fetch total donasi
-      const { data: donasiData } = await supabase
-        .from('donasi')
-        .select('nominal, tanggal, metode_pembayaran, donatur_id, jadwal_safari_id') as { data: any[] | null };
-
-      // Fetch donatur count
-      const { count: donaturCount } = await supabase
-        .from('donatur')
-        .select('*', { count: 'exact', head: true });
-
-      // Fetch all komitmen for progress
-      const { data: komitmenDataAll } = await supabase
-        .from('komitmen')
-        .select('total_komitmen, total_terbayar, status') as { data: any[] | null };
-
-      // Fetch upcoming jadwal
-      const today = new Date().toISOString().split('T')[0];
-      const { data: jadwalData } = await supabase
+      const { data, error } = await supabase
         .from('jadwal_safari')
         .select('*')
-        .gte('tanggal', today)
         .order('tanggal', { ascending: true })
-        .limit(5) as { data: any[] | null };
+        .order('ramadhan_ke', { ascending: true });
 
-      // Fetch all jadwal for masjid names
-      const { data: allJadwal } = await supabase
-        .from('jadwal_safari')
-        .select('id, nama_masjid') as { data: any[] | null };
-
-      // Fetch all donatur for names
-      const { data: allDonatur } = await supabase
-        .from('donatur')
-        .select('id, nama') as { data: any[] | null };
-
-      // Calculate total donasi
-      const totalDonasi = donasiData?.reduce((sum, d) => sum + Number(d.nominal), 0) || 0;
-
-      // Calculate active komitmen total (remaining)
-      const totalKomitmenAktif = komitmenDataAll?.filter(k => k.status === 'aktif').reduce(
-        (sum, k) => sum + (Number(k.total_komitmen) - Number(k.total_terbayar)),
-        0
-      ) || 0;
-
-      // Calculate overall commitment progress
-      const totalK_Amount = komitmenDataAll?.reduce((sum, k) => sum + Number(k.total_komitmen), 0) || 0;
-      const totalK_Paid = komitmenDataAll?.reduce((sum, k) => sum + Number(k.total_terbayar), 0) || 0;
-      const totalK_Remaining = Math.max(0, totalK_Amount - totalK_Paid);
-
-      // Calculate donasi per masjid
-      const masjidMap = new Map<string, number>();
-      const jadwalMap = new Map(allJadwal?.map((j) => [j.id, j.nama_masjid]) || []);
-      const donaturMap = new Map(allDonatur?.map((d) => [d.id, d.nama]) || []);
-
-      donasiData?.forEach((d: any) => {
-        const masjidName = jadwalMap.get(d.jadwal_safari_id) || 'Unknown';
-        masjidMap.set(masjidName, (masjidMap.get(masjidName) || 0) + Number(d.nominal));
-      });
-
-      const donasiPerMasjid = Array.from(masjidMap.entries())
-        .map(([nama_masjid, total]) => ({ nama_masjid, total }))
-        .sort((a, b) => b.total - a.total);
-
-      // Calculate donasi by metode
-      const cashTotal = donasiData?.filter((d) => d.metode_pembayaran === 'cash').reduce((s, d) => s + Number(d.nominal), 0) || 0;
-      const transferTotal = donasiData?.filter((d) => d.metode_pembayaran === 'transfer').reduce((s, d) => s + Number(d.nominal), 0) || 0;
-
-      // Recent donasi
-      const { data: recentDonasiRaw } = await supabase
-        .from('donasi')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(5) as { data: any[] | null };
-
-      const recentDonasi = recentDonasiRaw?.map((d: any) => ({
-        id: d.id,
-        tanggal: d.tanggal,
-        nominal: Number(d.nominal),
-        nama_donatur: donaturMap.get(d.donatur_id) || 'Unknown',
-        nama_masjid: jadwalMap.get(d.jadwal_safari_id) || 'Unknown',
-        metode: d.metode_pembayaran,
-      })) || [];
-
-      setData({
-        totalDonasi,
-        totalKomitmenAktif,
-        jumlahDonatur: donaturCount || 0,
-        jadwalTerdekat: jadwalData || [],
-        donasiPerMasjid,
-        recentDonasi,
-        donasiByMetode: [
-          { name: 'Cash', value: cashTotal },
-          { name: 'Transfer', value: transferTotal },
-        ],
-        komitmenProgress: [
-          { name: 'Terbayar', value: totalK_Paid },
-          { name: 'Sisa Komitmen', value: totalK_Remaining },
-        ]
-      });
+      if (error) throw error;
+      setJadwalList(data || []);
     } catch (error) {
-      console.error('Error fetching dashboard data:', error);
+      console.error('Error fetching jadwal:', error);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchDashboardData();
-  }, [fetchDashboardData]);
+    fetchJadwal();
+  }, [fetchJadwal]);
+
+  const filteredList = jadwalList.filter((item) => {
+    const query = searchQuery.toLowerCase();
+    const matchSearch = item.nama_masjid.toLowerCase().includes(query) || (item.alamat && item.alamat.toLowerCase().includes(query));
+    const matchWaktu = filterWaktu === 'semua' || item.waktu_sholat === filterWaktu;
+    return matchSearch && matchWaktu;
+  });
+
+  const groupedJadwal = filteredList.reduce((acc, item) => {
+    const key = item.tanggal;
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(item);
+    return acc;
+  }, {} as Record<string, JadwalSafari[]>);
+
+  const getCalendarDays = (monthDate: Date) => {
+    const monthStart = startOfMonth(monthDate);
+    const monthEnd = endOfMonth(monthStart);
+    const startDate = startOfWeek(monthStart, { weekStartsOn: 1 });
+    const endDate = endOfWeek(monthEnd, { weekStartsOn: 1 });
+    return eachDayOfInterval({ start: startDate, end: endDate });
+  };
+
+  const getDayStatus = (date: Date) => {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    const daySchedules = jadwalList.filter(item => item.tanggal === dateStr);
+    if (daySchedules.length === 0) return 'none';
+    const allCompleted = daySchedules.every(item => item.status === 'sudah_dilaksanakan');
+    return allCompleted ? 'completed' : 'pending';
+  };
 
   return (
-    <div className="min-h-screen flex">
-      <Sidebar />
-      <main className="flex-1 lg:ml-[280px] pt-16 lg:pt-0">
-        <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
-          {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-2xl md:text-3xl font-bold text-dark-900 mb-2">
-              Dashboard <span className="gradient-text">Admin</span>
-            </h1>
-            <p className="text-dark-500 text-sm">
-              Ringkasan data Safari Ramadhan — {new Date().toLocaleDateString('id-ID', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-              })}
-            </p>
+    <div className="min-h-screen bg-dark-50">
+      {/* Navbar */}
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-dark-100 px-6 py-4">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-primary-200">
+              <Star className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h1 className="font-bold text-lg gradient-text leading-tight">Safari Ramadhan</h1>
+              <p className="text-[10px] text-dark-500 uppercase tracking-widest font-black">Palu 1447H / 2026M</p>
+            </div>
+          </div>
+          <Link href="/login" className="btn-secondary py-2 px-5 text-sm rounded-xl flex items-center gap-2">
+            <LogIn className="w-4 h-4" />
+            Masuk Admin
+          </Link>
+        </div>
+      </nav>
+
+      <main className="pt-24 pb-20 px-4 md:px-6 max-w-7xl mx-auto">
+        {/* Hero Section */}
+        <div className="text-center mb-16 animate-in fade-in slide-in-from-top-4 duration-700">
+          <span className="inline-block px-4 py-1.5 rounded-full bg-primary-50 text-primary-600 text-xs font-black uppercase tracking-widest mb-4 border border-primary-100">
+            Jadwal Resmi Safari Ramadhan
+          </span>
+          <h2 className="text-4xl md:text-6xl font-black text-dark-900 mb-6 leading-tight">
+            Eksplorasi Perjalanan <br />
+            <span className="gradient-text">Dakwah & Safari</span>
+          </h2>
+          <p className="text-dark-500 max-w-2xl mx-auto text-lg">
+            Ikuti perjalanan safari ramadhan di berbagai masjid di Kota Palu.
+            Temukan jadwal tausiyah, subuh berjamaah, dan kegiatan lainnya selama bulan suci.
+          </p>
+        </div>
+
+        {/* Calendar Desktop Section */}
+        <div className="glass-card-static p-0 overflow-hidden shadow-2xl border-none mb-12">
+          <div className="p-8 bg-gradient-to-br from-primary-700 via-indigo-700 to-indigo-900 text-white">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-3xl bg-white/20 backdrop-blur-xl flex items-center justify-center border border-white/30 shadow-2xl">
+                  <CalendarIcon className="w-7 h-7" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-black tracking-tight">Kalender Safari</h3>
+                  <p className="text-white/70 text-sm font-medium uppercase tracking-widest">Februari — Maret 2026</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4 bg-black/20 backdrop-blur-md px-6 py-3 rounded-2xl border border-white/10">
+                <div className="text-center px-4 border-r border-white/10">
+                  <p className="text-[10px] uppercase font-black opacity-60">Total Masjid</p>
+                  <p className="text-xl font-black">28</p>
+                </div>
+                <div className="text-center px-4">
+                  <p className="text-[10px] uppercase font-black opacity-60">Waktu Sholat</p>
+                  <p className="text-xl font-black">3</p>
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* Stat Cards */}
-          {loading ? (
-            <StatSkeleton />
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-              <StatCard
-                title="Total Donasi Terkumpul"
-                value={formatCurrency(data?.totalDonasi || 0)}
-                icon={Heart}
-                color="purple"
-              />
-              <StatCard
-                title="Komitmen Aktif"
-                value={formatCurrency(data?.totalKomitmenAktif || 0)}
-                subtitle="Sisa tagihan belum lunas"
-                icon={Handshake}
-                color="gold"
-              />
-              <StatCard
-                title="Jumlah Donatur"
-                value={formatNumber(data?.jumlahDonatur || 0)}
-                subtitle="Total donatur terdaftar"
-                icon={Users}
-                color="blue"
-              />
-              <StatCard
-                title="Jadwal Mendatang"
-                value={formatNumber(data?.jadwalTerdekat?.length || 0)}
-                subtitle="Safari belum dilaksanakan"
-                icon={Calendar}
-                color="green"
-              />
-            </div>
-          )}
+          <div className="p-8 bg-white">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-x-12 gap-y-10">
+              {[feb2026, mar2026].map((monthDate, mIdx) => {
+                const monthStart = startOfMonth(monthDate);
+                const calendarDays = getCalendarDays(monthDate);
 
-          {/* Charts Row */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-            {/* Bar Chart - Donasi Per Masjid */}
-            <div className="lg:col-span-2 glass-card-static p-6">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h2 className="text-lg font-bold text-dark-900 flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5 text-primary-500" />
-                    Donasi Per Masjid
-                  </h2>
-                  <p className="text-xs text-dark-500 mt-1">Total pemasukan per lokasi safari</p>
-                </div>
-                <Link href="/laporan" className="text-primary-600 text-xs font-semibold hover:text-primary-500 flex items-center gap-1">
-                  Lihat Detail <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
-              </div>
-              {data?.donasiPerMasjid && data.donasiPerMasjid.length > 0 ? (
-                <ResponsiveContainer width="100%" height={280}>
-                  <BarChart data={data.donasiPerMasjid} barSize={32}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                    <XAxis
-                      dataKey="nama_masjid"
-                      tick={{ fill: '#64748b', fontSize: 11 }}
-                      axisLine={{ stroke: '#e2e8f0' }}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      tick={{ fill: '#64748b', fontSize: 11 }}
-                      axisLine={{ stroke: '#e2e8f0' }}
-                      tickLine={false}
-                      tickFormatter={(v) => `${(v / 1000000).toFixed(1)}jt`}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        background: '#ffffff',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: '12px',
-                        fontSize: '13px',
-                        color: '#0f172a',
-                      }}
-                      formatter={(value: any) => [formatCurrency(Number(value)), 'Total Donasi']}
-                    />
-                    <Bar dataKey="total" fill="url(#colorGradient)" radius={[8, 8, 0, 0]}>
-                      {data.donasiPerMasjid.map((_, index) => (
-                        <Cell key={index} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-[280px] flex items-center justify-center text-dark-500 text-sm">
-                  Belum ada data donasi
-                </div>
-              )}
-            </div>
-
-            {/* Pie Chart - Progress Komitmen */}
-            <div className="glass-card-static p-6">
-              <h2 className="text-lg font-bold text-dark-900 mb-1">Progress Pelunasan Komitmen</h2>
-              <p className="text-xs text-dark-500 mb-6">Total Terbayar vs Sisa</p>
-              {data?.komitmenProgress && (data.komitmenProgress[0].value > 0 || data.komitmenProgress[1].value > 0) ? (
-                <>
-                  <ResponsiveContainer width="100%" height={280}>
-                    <PieChart>
-                      <Pie
-                        data={data.komitmenProgress}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={70}
-                        outerRadius={100}
-                        dataKey="value"
-                        stroke="none"
-                        paddingAngle={4}
-                      >
-                        <Cell fill="#10b981" />
-                        <Cell fill="#f43f5e" />
-                      </Pie>
-                      <Tooltip
-                        contentStyle={{
-                          background: '#ffffff',
-                          border: '1px solid #e2e8f0',
-                          borderRadius: '12px',
-                          fontSize: '13px',
-                          color: '#0f172a',
-                        }}
-                        formatter={(value: any) => formatCurrency(Number(value))}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="space-y-3 mt-6">
+                return (
+                  <div key={mIdx} className="space-y-6">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-green-500" />
-                        <span className="text-sm text-dark-600 font-medium">Terbayar</span>
-                      </div>
-                      <span className="text-sm font-bold text-dark-900">{formatCurrency(data.komitmenProgress[0].value)}</span>
+                      <h4 className="text-xl font-black text-dark-900 capitalize">
+                        {format(monthDate, 'MMMM yyyy', { locale: localeId })}
+                      </h4>
+                      <div className="flex-1 h-px bg-dark-100 mx-6 hidden md:block" />
                     </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-red-500" />
-                        <span className="text-sm text-dark-600 font-medium">Sisa Tagihan</span>
-                      </div>
-                      <span className="text-sm font-bold text-dark-900">{formatCurrency(data.komitmenProgress[1].value)}</span>
+
+                    <div className="grid grid-cols-7 gap-1 sm:gap-2">
+                      {['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'].map(day => (
+                        <div key={day} className="text-center text-[10px] font-black text-dark-400 uppercase tracking-widest pb-4">
+                          {day}
+                        </div>
+                      ))}
+                      {calendarDays.map((day, idx) => {
+                        const isInMonth = isSameMonth(day, monthStart);
+                        const status = getDayStatus(day);
+                        const isToday = isSameDay(day, new Date());
+
+                        let dayClasses = "relative aspect-square md:aspect-[4/3] rounded-2xl flex flex-col items-center justify-center transition-all duration-300 group ";
+
+                        if (!isInMonth) {
+                          dayClasses += "opacity-0 pointer-events-none";
+                        } else if (status === 'completed') {
+                          dayClasses += "bg-emerald-50 text-emerald-700 border border-emerald-100 hover:scale-105";
+                        } else if (status === 'pending') {
+                          dayClasses += "bg-amber-50 text-amber-700 border border-amber-100 hover:scale-105 shadow-md shadow-amber-100/50";
+                        } else {
+                          dayClasses += "bg-white text-dark-400 border border-dark-50 hover:border-primary-200 hover:bg-primary-50/30";
+                        }
+
+                        return (
+                          <button
+                            key={idx}
+                            onClick={() => {
+                              if (status !== 'none') {
+                                const el = document.getElementById(`date-${format(day, 'yyyy-MM-dd')}`);
+                                el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                              }
+                            }}
+                            className={dayClasses}
+                            disabled={status === 'none'}
+                          >
+                            <span className={`text-base md:text-xl font-black ${isToday ? 'text-primary-600 underline decoration-4 underline-offset-4' : ''}`}>
+                              {format(day, 'd')}
+                            </span>
+                            {status !== 'none' && (
+                              <div className={`mt-1 h-1 w-4 rounded-full ${status === 'completed' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+                            )}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
-                </>
-              ) : (
-                <div className="h-[280px] flex items-center justify-center text-dark-500 text-sm">
-                  Belum ada data komitmen
-                </div>
-              )}
+                );
+              })}
+            </div>
+
+            <div className="mt-10 pt-8 border-t border-dark-50 flex flex-wrap items-center gap-6">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-amber-400" />
+                <span className="text-xs font-bold text-dark-600 uppercase tracking-wider">Jadwal Mendatang</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-emerald-400" />
+                <span className="text-xs font-bold text-dark-600 uppercase tracking-wider">Terlaksana</span>
+              </div>
             </div>
           </div>
+        </div>
 
-          {/* Bottom Row */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Upcoming Schedule */}
-            <div className="glass-card-static p-6">
-              <div className="flex items-center justify-between mb-5">
-                <h2 className="text-lg font-bold text-dark-900 flex items-center gap-2">
-                  <Calendar className="w-5 h-5 text-primary-500" />
-                  Jadwal Safari Terdekat
-                </h2>
-                <Link href="/jadwal" className="text-primary-600 text-xs font-semibold hover:text-primary-500 flex items-center gap-1">
-                  Semua <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
+        {/* Filters & Search */}
+        <div className="sticky top-20 z-40 bg-dark-50/80 backdrop-blur-md py-4 mb-8">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-dark-400" />
+              <input
+                type="text"
+                placeholder="Cari nama masjid atau alamat..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="form-input pl-12 h-14 bg-white shadow-xl shadow-dark-200/50 border-white"
+              />
+            </div>
+            <div className="flex gap-2">
+              <div className="relative min-w-[160px]">
+                <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-400" />
+                <select
+                  value={filterWaktu}
+                  onChange={(e) => setFilterWaktu(e.target.value)}
+                  className="form-select pl-11 h-14 bg-white shadow-xl shadow-dark-200/50 border-white font-bold"
+                >
+                  <option value="semua">Semua Waktu</option>
+                  <option value="subuh">Subuh</option>
+                  <option value="dzuhur">Dzuhur</option>
+                  <option value="isya">Isya</option>
+                </select>
               </div>
-              {data?.jadwalTerdekat && data.jadwalTerdekat.length > 0 ? (
-                <div className="space-y-3">
-                  {data.jadwalTerdekat.map((jadwal, index) => {
-                    const waktuConfig: Record<string, { label: string; Icon: typeof Sunrise; color: string; bg: string }> = {
-                      subuh: { label: 'Subuh', Icon: Sunrise, color: 'text-blue-600', bg: 'bg-blue-50' },
-                      dzuhur: { label: 'Dzuhur', Icon: Sun, color: 'text-amber-600', bg: 'bg-amber-50' },
-                      isya: { label: 'Isya', Icon: Moon, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-                    };
-                    const wk = waktuConfig[jadwal.waktu_sholat] || waktuConfig.subuh;
+            </div>
+          </div>
+        </div>
+
+        {/* List Section */}
+        {loading ? (
+          <div className="space-y-8">
+            {[1, 2, 3].map(i => <div key={i} className="h-64 rounded-3xl bg-dark-100 animate-pulse" />)}
+          </div>
+        ) : Object.keys(groupedJadwal).length === 0 ? (
+          <div className="text-center py-20 bg-white rounded-3xl border border-dark-100 shadow-xl">
+            <div className="w-20 h-20 bg-dark-50 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Search className="w-10 h-10 text-dark-300" />
+            </div>
+            <h3 className="text-xl font-bold text-dark-900 mb-2">Jadwal Tidak Ditemukan</h3>
+            <p className="text-dark-500">Coba ubah kata kunci pencarian atau filter Anda.</p>
+          </div>
+        ) : (
+          <div className="space-y-12">
+            {Object.entries(groupedJadwal).map(([date, items]) => (
+              <div key={date} id={`date-${date}`} className="scroll-mt-40 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="flex items-center gap-6 mb-8 group">
+                  <div className="flex flex-col items-center justify-center w-20 h-24 bg-white rounded-3xl shadow-xl shadow-primary-200/20 border border-dark-100 group-hover:bg-primary-600 transition-colors duration-300">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-dark-400 group-hover:text-white/60 mb-1">
+                      {format(new Date(date), 'MMM', { locale: localeId })}
+                    </span>
+                    <span className="text-3xl font-black text-dark-900 group-hover:text-white leading-none">
+                      {format(new Date(date), 'd')}
+                    </span>
+                    <span className="text-[10px] font-black text-primary-600 group-hover:text-white/80 mt-1 uppercase">
+                      {format(new Date(date), 'eee', { locale: localeId })}
+                    </span>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-2xl font-black text-dark-900 mb-1">
+                      {format(new Date(date), 'EEEE, d MMMM yyyy', { locale: localeId })}
+                    </h3>
+                    <p className="text-sm font-bold text-primary-600 uppercase tracking-wider">
+                      Ramadhan Ke-{items[0].ramadhan_ke}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {items.map((item) => {
+                    const config = WAKTU_LABELS[item.waktu_sholat] || WAKTU_LABELS.subuh;
+                    const Icon = config.icon;
                     return (
-                      <div
-                        key={jadwal.id}
-                        className="flex items-center gap-3 p-3 rounded-xl bg-dark-50 hover:bg-dark-100 transition-all border border-dark-100/50"
-                        style={{ animation: `slideInLeft 0.3s ease ${index * 0.1}s both` }}
-                      >
-                        <div className="w-12 h-14 rounded-xl bg-primary-50 border border-primary-100 flex flex-col items-center justify-center flex-shrink-0">
-                          <span className="text-[10px] text-primary-600 font-bold uppercase tracking-wider">
-                            {new Date(jadwal.tanggal).toLocaleDateString('id-ID', { month: 'short' })}
-                          </span>
-                          <span className="text-xl font-bold text-dark-900 leading-none mt-0.5">
-                            {new Date(jadwal.tanggal).getDate()}
-                          </span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-bold text-dark-900 text-sm truncate">{jadwal.nama_masjid}</p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className={`inline-flex items-center gap-1 text-[10px] font-bold ${wk.color}`}>
-                              <wk.Icon className="w-3 h-3" /> {wk.label}
-                            </span>
-                            <span className="text-[10px] text-dark-400">•</span>
-                            <span className="text-[10px] text-dark-500">Ke-{jadwal.ramadhan_ke}</span>
+                      <div key={item.id} className="glass-card p-6 border-l-8 hover:shadow-2xl hover:scale-[1.02]" style={{ borderLeftColor: `var(--${config.color.split('-')[1]}-500)` }}>
+                        <div className="flex items-start justify-between mb-6">
+                          <div className={`w-12 h-12 rounded-2xl ${config.bgColor} flex items-center justify-center`}>
+                            <Icon className={`w-6 h-6 ${config.color}`} />
                           </div>
+                          <span className={`badge ${getStatusColor(item.status)}`}>
+                            {item.status === 'sudah_dilaksanakan' ? <CheckCircle2 className="w-3 h-3 mr-1" /> : <Clock className="w-3 h-3 mr-1" />}
+                            {getStatusLabel(item.status)}
+                          </span>
                         </div>
-                        <span className={`badge text-[10px] ${getStatusColor(jadwal.status)}`}>
-                          {getStatusLabel(jadwal.status)}
-                        </span>
+                        <h4 className="text-xl font-bold text-dark-900 mb-3 leading-tight">{item.nama_masjid}</h4>
+                        {item.alamat && (
+                          <p className="text-sm text-dark-500 flex items-start gap-2 mb-4 italic">
+                            <MapPin className="w-4 h-4 mt-0.5 text-primary-500 shrink-0" />
+                            {item.alamat}
+                          </p>
+                        )}
+                        <div className="pt-4 border-t border-dark-50 flex items-center justify-between">
+                          <span className={`text-xs font-black uppercase tracking-widest ${config.color}`}>Waktu {config.label}</span>
+                          <Link href={`#`} className="text-primary-600 text-[10px] font-black uppercase tracking-widest flex items-center gap-1 hover:gap-2 transition-all">
+                            Detail Masjid <ArrowRight className="w-3 h-3" />
+                          </Link>
+                        </div>
                       </div>
                     );
                   })}
                 </div>
-              ) : (
-                <div className="py-12 text-center text-dark-500 text-sm">
-                  Tidak ada jadwal mendatang
-                </div>
-              )}
-            </div>
-
-            {/* Recent Donations */}
-            <div className="glass-card-static p-6">
-              <div className="flex items-center justify-between mb-5">
-                <h2 className="text-lg font-bold text-dark-900 flex items-center gap-2">
-                  <Heart className="w-5 h-5 text-accent-500" />
-                  Donasi Terbaru
-                </h2>
-                <Link href="/donasi" className="text-primary-600 text-xs font-semibold hover:text-primary-500 flex items-center gap-1">
-                  Semua <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
               </div>
-              {data?.recentDonasi && data.recentDonasi.length > 0 ? (
-                <div className="space-y-3">
-                  {data.recentDonasi.map((donasi, index) => (
-                    <div
-                      key={donasi.id}
-                      className="flex items-center gap-4 p-3 rounded-xl bg-dark-50 hover:bg-dark-100 transition-all border border-dark-100/50"
-                      style={{ animation: `slideInLeft 0.3s ease ${index * 0.1}s both` }}
-                    >
-                      <div className="w-10 h-10 rounded-xl bg-accent-50 flex items-center justify-center flex-shrink-0">
-                        <Heart className="w-5 h-5 text-accent-600" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-dark-900 text-sm truncate">{donasi.nama_donatur}</p>
-                        <p className="text-xs text-dark-500 flex items-center gap-1 mt-0.5">
-                          <MapPin className="w-3 h-3" />
-                          {donasi.nama_masjid}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-bold text-primary-600">{formatCurrency(donasi.nominal)}</p>
-                        <p className="text-xs text-dark-500">{formatShortDate(donasi.tanggal)}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="py-12 text-center text-dark-500 text-sm">
-                  Belum ada donasi tercatat
-                </div>
-              )}
-            </div>
+            ))}
           </div>
+        )}
 
-          {/* Quick Links */}
-          <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Link href="/jadwal" className="glass-card p-5 group border border-dark-100 shadow-sm hover:shadow-md transition-all">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-primary-50 flex items-center justify-center group-hover:bg-primary-100 transition-colors">
-                  <Calendar className="w-5 h-5 text-primary-600" />
-                </div>
-                <div>
-                  <p className="font-semibold text-dark-900 text-sm">Kelola Jadwal</p>
-                  <p className="text-xs text-dark-500">Tambah & edit jadwal safari</p>
-                </div>
-                <ArrowRight className="w-4 h-4 text-dark-400 ml-auto group-hover:text-dark-900 group-hover:translate-x-1 transition-all" />
-              </div>
+        {/* Footer Section */}
+        <div className="mt-32 text-center p-12 bg-white rounded-[40px] shadow-2xl shadow-primary-200/20 border border-dark-50 overflow-hidden relative group">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-64 bg-primary-100/50 rounded-full blur-3xl -z-10 group-hover:scale-150 transition-transform duration-1000" />
+          <h3 className="text-3xl font-black text-dark-900 mb-4">Mari Berbagi di Bulan Suci</h3>
+          <p className="text-dark-500 mb-8 max-w-xl mx-auto">
+            Salurkan kepedulian Anda melalui program Safari Ramadhan untuk mendukung dakwah dan kenyamanan beribadah di berbagai masjid.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Link href="/login" className="btn-primary px-10 h-14 rounded-2xl">
+              Catat Donasi Sekarang
             </Link>
-            <Link href="/donasi" className="glass-card p-5 group border border-dark-100 shadow-sm hover:shadow-md transition-all">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-accent-50 flex items-center justify-center group-hover:bg-accent-100 transition-colors">
-                  <Heart className="w-5 h-5 text-accent-600" />
-                </div>
-                <div>
-                  <p className="font-semibold text-dark-900 text-sm">Catat Donasi</p>
-                  <p className="text-xs text-dark-500">Input donasi baru</p>
-                </div>
-                <ArrowRight className="w-4 h-4 text-dark-400 ml-auto group-hover:text-dark-900 group-hover:translate-x-1 transition-all" />
-              </div>
-            </Link>
-            <Link href="/laporan" className="glass-card p-5 group border border-dark-100 shadow-sm hover:shadow-md transition-all">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center group-hover:bg-blue-100 transition-colors">
-                  <Landmark className="w-5 h-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="font-semibold text-dark-900 text-sm">Laporan</p>
-                  <p className="text-xs text-dark-500">Lihat laporan donasi</p>
-                </div>
-                <ArrowRight className="w-4 h-4 text-dark-400 ml-auto group-hover:text-dark-900 group-hover:translate-x-1 transition-all" />
-              </div>
-            </Link>
+            <button className="btn-secondary px-10 h-14 rounded-2xl">
+              Pelajari Selengkapnya
+            </button>
           </div>
         </div>
+
+        <p className="text-center mt-20 text-dark-400 text-xs font-medium">
+          &copy; 2026 Panitia Safari Ramadhan SR. <br />
+          Palu, Sulawesi Tengah, Indonesia.
+        </p>
       </main>
     </div>
   );
