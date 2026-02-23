@@ -1,36 +1,54 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Aplikasi Manajemen Donasi Safari Ramadhan
 
-## Getting Started
+Aplikasi berbasis web untuk mengelola jadwal safari, pencatatan donasi, dan monitoring komitmen donatur selama periode Ramadhan.
 
-First, run the development server:
+## 🚀 Fitur Utama
+- **Dashboard Admin**: Visualisasi total donasi, komitmen aktif, dan grafik pemasukan.
+- **Manajemen Jadwal**: Kelola lokasi masjid, tanggal, dan penceramah.
+- **Pencatatan Donasi**: Input donasi (Cash/Transfer) dengan audit trail per masjid.
+- **Monitoring Komitmen**: Lacak progres pelunasan donatur yang berkomitmen (cicilan).
+- **Laporan Otomatis**: Laporan per masjid dan tren harian/mingguan.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## 🛠️ Tech Stack
+- **Framework**: Next.js 15 (App Router)
+- **Styling**: Tailwind CSS 4.0
+- **Database & Auth**: Supabase
+- **Icons**: Lucide React
+- **Charts**: Recharts
+- **Deployment**: Vercel
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## ⚙️ Persiapan Database (Supabase)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. **Jalankan SQL Migration**:
+   - Buka [Supabase Dashboard](https://app.supabase.com/)
+   - Pilih proyek Anda -> SQL Editor
+   - Copy Isi dari file `supabase/migration.sql` dan jalankan (Run).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+2. **Setup Storage (Untuk Bukti Transfer)**:
+   - Buka menu **Storage** di Supabase.
+   - Buat bucket baru dengan nama: `bukti-transfer`.
+   - Atur bucket tersebut menjadi **Public**.
 
-## Learn More
+3. **Environment Variables**:
+   - File `.env.local` sudah dikonfigurasi dengan credentials Anda.
 
-To learn more about Next.js, take a look at the following resources:
+## 🏃 Cara Menjalankan Lokal
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. Install dependensi:
+   ```bash
+   npm install
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+2. Jalankan server development:
+   ```bash
+   npm run dev
+   ```
 
-## Deploy on Vercel
+3. Buka [http://localhost:3000](http://localhost:3000) di browser Anda.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 📁 Struktur Proyek
+- `src/app`: Halaman-halaman aplikasi (Dashboard, Jadwal, Donasi, dll).
+- `src/components`: Komponen UI reusable (Sidebar, Modal, StatCard).
+- `src/lib`: Konfigurasi Supabase dan helper utilities.
+- `src/types`: Definisi tipe data TypeScript untuk database.
+- `supabase`: Script SQL untuk inisialisasi tabel.
