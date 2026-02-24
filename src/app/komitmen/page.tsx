@@ -20,6 +20,8 @@ import {
     CheckCircle2,
     Clock,
     TrendingUp,
+    Upload,
+    Eye,
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 
@@ -41,6 +43,7 @@ export default function KomitmenPage() {
         jadwal_safari_id: '',
         metode_pembayaran: 'cash' as 'cash' | 'transfer',
         tanggal: new Date().toISOString().split('T')[0],
+        bukti_transfer: '',
     });
 
     const [formData, setFormData] = useState({
@@ -199,6 +202,35 @@ export default function KomitmenPage() {
         });
     };
 
+    const [previewImage, setPreviewImage] = useState<string | null>(null);
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (file.size > 2 * 1024 * 1024) {
+            Swal.fire({
+                icon: 'error',
+                title: 'File terlalu besar',
+                text: 'Maksimal ukuran file adalah 2MB.',
+            });
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setPaymentData({ ...paymentData, bukti_transfer: reader.result as string });
+            Swal.fire({
+                icon: 'success',
+                title: 'Berhasil!',
+                text: 'Bukti transfer berhasil diproses.',
+                timer: 1500,
+                showConfirmButton: false
+            });
+        };
+        reader.readAsDataURL(file);
+    };
+
     const handlePay = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!paymentItem) return;
@@ -214,6 +246,7 @@ export default function KomitmenPage() {
                 nominal: nominal,
                 metode_pembayaran: paymentData.metode_pembayaran,
                 jadwal_safari_id: paymentData.jadwal_safari_id,
+                bukti_transfer: paymentData.bukti_transfer || null,
                 keterangan: `Cicilan komitmen untuk ${paymentItem.donatur?.nama}`,
             });
             if (dError) throw dError;
@@ -245,6 +278,7 @@ export default function KomitmenPage() {
                 jadwal_safari_id: '',
                 metode_pembayaran: 'cash',
                 tanggal: new Date().toISOString().split('T')[0],
+                bukti_transfer: '',
             });
             fetchData();
         } catch (error: any) {
@@ -598,6 +632,40 @@ export default function KomitmenPage() {
                         </div>
                     </div>
 
+                    {paymentData.metode_pembayaran === 'transfer' && (
+                        <div>
+                            <label className="form-label text-xs">Upload Bukti Transfer</label>
+                            <div className="border border-dashed border-dark-200 rounded-xl p-3 text-center hover:border-primary-300 transition-colors bg-white">
+                                {paymentData.bukti_transfer ? (
+                                    <div className="flex flex-col items-center">
+                                        <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center mb-1">
+                                            <CheckCircle2 className="w-5 h-5" />
+                                        </div>
+                                        <p className="text-[10px] text-dark-900 font-bold mb-1">Berhasil Diunggah</p>
+                                        <button
+                                            type="button"
+                                            onClick={() => setPreviewImage(paymentData.bukti_transfer)}
+                                            className="text-[9px] text-primary-600 font-bold hover:underline flex items-center gap-1"
+                                        >
+                                            <Eye className="w-2.5 h-2.5" /> Lihat Bukti
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <Upload className="w-5 h-5 text-dark-400 mx-auto mb-1" />
+                                        <p className="text-[9px] text-dark-500 mb-2">Pilih gambar bukti transfer</p>
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={handleFileUpload}
+                                            className="w-full text-[9px] text-dark-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[9px] file:font-bold file:bg-primary-50 file:text-primary-600 cursor-pointer"
+                                        />
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
                     <div>
                         <label className="form-label">Pilih Lokasi Safari (Masjid)</label>
                         <select
@@ -626,6 +694,18 @@ export default function KomitmenPage() {
                     </div>
                 </form>
             </Modal>
+            {/* Image Preview */}
+            {previewImage && (
+                <div
+                    className="fixed inset-0 bg-dark-900/80 backdrop-blur-md z-[100] flex items-center justify-center p-4"
+                    onClick={() => setPreviewImage(null)}
+                >
+                    <div className="max-w-lg w-full">
+                        <img src={previewImage} alt="Bukti Transfer" className="w-full rounded-2xl" />
+                        <p className="text-center text-dark-400 text-sm mt-4">Klik di mana saja untuk menutup</p>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

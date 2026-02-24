@@ -361,13 +361,17 @@ export default function JadwalPage() {
                                                             className={`
                                                                 relative aspect-square rounded-lg text-xs font-semibold transition-all flex items-center justify-center
                                                                 ${!isSameMonth(day, month) ? 'opacity-0 pointer-events-none' : ''}
-                                                                ${isSelected ? 'bg-primary-600 text-white shadow-lg shadow-primary-200 scale-110 z-10' : 'text-dark-600 hover:bg-primary-50 hover:text-primary-600'}
+                                                                ${isSelected
+                                                                    ? 'bg-primary-600 text-white shadow-lg shadow-primary-200 scale-110 z-10'
+                                                                    : status === 'completed'
+                                                                        ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                                                                        : status === 'pending'
+                                                                            ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                                                                            : 'text-dark-600 hover:bg-primary-50 hover:text-primary-600'
+                                                                }
                                                             `}
                                                         >
                                                             {format(day, 'd')}
-                                                            {status !== 'none' && !isSelected && (
-                                                                <div className={`absolute bottom-1 w-1 h-1 rounded-full ${status === 'completed' ? 'bg-emerald-500' : 'bg-primary-500'}`} />
-                                                            )}
                                                         </button>
                                                     );
                                                 })}

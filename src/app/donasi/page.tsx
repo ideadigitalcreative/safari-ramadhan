@@ -269,24 +269,41 @@ export default function DonasiPage() {
         const file = e.target.files?.[0];
         if (!file) return;
 
+        // Check file size (max 2MB for base64 storage efficiency)
+        if (file.size > 2 * 1024 * 1024) {
+            Swal.fire({
+                icon: 'error',
+                title: 'File terlalu besar',
+                text: 'Maksimal ukuran file adalah 2MB agar sistem tetap ringan.',
+            });
+            return;
+        }
+
         try {
-            const fileExt = file.name.split('.').pop();
-            const fileName = `bukti_${Date.now()}.${fileExt}`;
-            const { error } = await supabase.storage
-                .from('bukti-transfer')
-                .upload(fileName, file);
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const base64String = reader.result as string;
+                setFormData({ ...formData, bukti_transfer: base64String });
 
-            if (error) throw error;
-
-            const { data: urlData } = supabase.storage
-                .from('bukti-transfer')
-                .getPublicUrl(fileName);
-
-            setFormData({ ...formData, bukti_transfer: urlData.publicUrl });
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Berhasil!',
+                    text: 'Bukti transfer berhasil diproses.',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+            };
+            reader.onerror = () => {
+                throw new Error('Gagal membaca file');
+            };
+            reader.readAsDataURL(file);
         } catch (error) {
-            console.error('Error uploading file:', error);
-            // Fallback: save as base64 or just filename
-            setFormData({ ...formData, bukti_transfer: file.name });
+            console.error('Error processing file:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Gagal!',
+                text: 'Terjadi kesalahan saat memproses gambar.',
+            });
         }
     };
 
