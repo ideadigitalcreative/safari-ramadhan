@@ -142,43 +142,43 @@ export default function LandingPage() {
 
         {/* Calendar Desktop Section */}
         <div className="glass-card-static p-0 overflow-hidden shadow-2xl border-none mb-12">
-          <div className="p-8 bg-gradient-to-br from-primary-700 via-indigo-700 to-indigo-900 text-white">
+          <div className="p-8 bg-white border-b border-dark-100">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-3xl bg-white/20 backdrop-blur-xl flex items-center justify-center border border-white/30 shadow-2xl">
-                  <CalendarIcon className="w-7 h-7" />
+                <div className="w-12 h-12 rounded-2xl bg-primary-50 flex items-center justify-center border border-primary-100 shadow-sm">
+                  <CalendarIcon className="w-6 h-6 text-primary-600" />
                 </div>
                 <div>
-                  <h3 className="text-2xl font-black tracking-tight">Kalender Safari</h3>
-                  <p className="text-white/70 text-sm font-medium uppercase tracking-widest">Februari — Maret 2026</p>
+                  <h3 className="text-xl font-black text-dark-900 tracking-tight">Kalender Safari</h3>
+                  <p className="text-dark-500 text-xs font-bold uppercase tracking-widest">Februari — Maret 2026</p>
                 </div>
               </div>
-              <div className="flex items-center gap-4 bg-black/20 backdrop-blur-md px-6 py-3 rounded-2xl border border-white/10">
-                <div className="text-center px-4 border-r border-white/10">
-                  <p className="text-[10px] uppercase font-black opacity-60">Total Masjid</p>
-                  <p className="text-xl font-black">28</p>
+              <div className="flex items-center gap-4 bg-accent-50 px-5 py-2.5 rounded-2xl border border-accent-100">
+                <div className="text-center px-4 border-r border-accent-200">
+                  <p className="text-[9px] uppercase font-black text-accent-600">Total Masjid</p>
+                  <p className="text-lg font-black text-dark-900">28</p>
                 </div>
                 <div className="text-center px-4">
-                  <p className="text-[10px] uppercase font-black opacity-60">Waktu Sholat</p>
-                  <p className="text-xl font-black">3</p>
+                  <p className="text-[9px] uppercase font-black text-accent-600">Waktu Sholat</p>
+                  <p className="text-lg font-black text-dark-900">3</p>
                 </div>
               </div>
             </div>
           </div>
 
           <div className="p-8 bg-white">
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-x-12 gap-y-10">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-0 divide-y xl:divide-y-0 xl:divide-x divide-dark-100">
               {[feb2026, mar2026].map((monthDate, mIdx) => {
                 const monthStart = startOfMonth(monthDate);
                 const calendarDays = getCalendarDays(monthDate);
 
                 return (
-                  <div key={mIdx} className="space-y-6">
+                  <div key={mIdx} className={`space-y-6 ${mIdx === 0 ? 'pb-10 xl:pb-0 xl:pr-12' : 'pt-10 xl:pt-0 xl:pl-12'}`}>
                     <div className="flex items-center justify-between">
                       <h4 className="text-xl font-black text-dark-900 capitalize">
                         {format(monthDate, 'MMMM yyyy', { locale: localeId })}
                       </h4>
-                      <div className="flex-1 h-px bg-dark-100 mx-6 hidden md:block" />
+                      <div className="flex-1 h-px bg-dark-50 mx-6 hidden md:block" />
                     </div>
 
                     <div className="grid grid-cols-7 gap-1 sm:gap-2">
