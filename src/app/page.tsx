@@ -116,9 +116,10 @@ export default function LandingPage() {
               <p className="text-[10px] text-dark-500 uppercase tracking-widest font-black">1447H / 2026M</p>
             </div>
           </div>
-          <Link href="/login" className="btn-secondary py-2 px-5 text-sm rounded-xl flex items-center gap-2">
+          <Link href="/login" className="btn-secondary py-2 px-4 md:px-5 text-sm rounded-xl flex items-center gap-2">
             <LogIn className="w-4 h-4" />
-            Masuk Admin
+            <span className="hidden md:inline">Masuk Admin</span>
+            <span className="md:hidden">Login</span>
           </Link>
         </div>
       </nav>
