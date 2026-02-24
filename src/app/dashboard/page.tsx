@@ -75,39 +75,34 @@ export default function DashboardPage() {
 
     const fetchDashboardData = useCallback(async () => {
         try {
-            // Fetch total donasi
-            const { data: donasiData } = await supabase
-                .from('donasi')
-                .select('nominal, tanggal, metode_pembayaran, donatur_id, jadwal_safari_id') as { data: any[] | null };
-
-            // Fetch donatur count
-            const { count: donaturCount } = await supabase
-                .from('donatur')
-                .select('*', { count: 'exact', head: true });
-
-            // Fetch all komitmen for progress
-            const { data: komitmenDataAll } = await supabase
-                .from('komitmen')
-                .select('total_komitmen, total_terbayar, status') as { data: any[] | null };
-
-            // Fetch upcoming jadwal
             const today = new Date().toISOString().split('T')[0];
-            const { data: jadwalData } = await supabase
-                .from('jadwal_safari')
-                .select('*')
-                .gte('tanggal', today)
-                .order('tanggal', { ascending: true })
-                .limit(5) as { data: any[] | null };
 
-            // Fetch all jadwal for masjid names
-            const { data: allJadwal } = await supabase
-                .from('jadwal_safari')
-                .select('id, nama_masjid') as { data: any[] | null };
-
-            // Fetch all donatur for names
-            const { data: allDonatur } = await supabase
-                .from('donatur')
-                .select('id, nama') as { data: any[] | null };
+            // Run all network requests in parallel to drastically improve loading speed
+            const [
+                { data: donasiData },
+                { count: donaturCount },
+                { data: komitmenDataAll },
+                { data: jadwalData },
+                { data: allJadwal },
+                { data: allDonatur },
+                { data: recentDonasiRaw }
+            ] = await Promise.all([
+                supabase.from('donasi').select('nominal, tanggal, metode_pembayaran, donatur_id, jadwal_safari_id'),
+                supabase.from('donatur').select('*', { count: 'exact', head: true }),
+                supabase.from('komitmen').select('total_komitmen, total_terbayar, status'),
+                supabase.from('jadwal_safari').select('*').gte('tanggal', today).order('tanggal', { ascending: true }).limit(5),
+                supabase.from('jadwal_safari').select('id, nama_masjid'),
+                supabase.from('donatur').select('id, nama'),
+                supabase.from('donasi').select('*').order('created_at', { ascending: false }).limit(5)
+            ]) as [
+                    { data: any[] | null },
+                    { count: number | null },
+                    { data: any[] | null },
+                    { data: any[] | null },
+                    { data: any[] | null },
+                    { data: any[] | null },
+                    { data: any[] | null },
+                ];
 
             // Calculate total donasi
             const totalDonasi = donasiData?.reduce((sum, d) => sum + Number(d.nominal), 0) || 0;
@@ -140,13 +135,6 @@ export default function DashboardPage() {
             // Calculate donasi by metode
             const cashTotal = donasiData?.filter((d) => d.metode_pembayaran === 'cash').reduce((s, d) => s + Number(d.nominal), 0) || 0;
             const transferTotal = donasiData?.filter((d) => d.metode_pembayaran === 'transfer').reduce((s, d) => s + Number(d.nominal), 0) || 0;
-
-            // Recent donasi
-            const { data: recentDonasiRaw } = await supabase
-                .from('donasi')
-                .select('*')
-                .order('created_at', { ascending: false })
-                .limit(5) as { data: any[] | null };
 
             const recentDonasi = recentDonasiRaw?.map((d: any) => ({
                 id: d.id,
@@ -208,7 +196,7 @@ export default function DashboardPage() {
                     {loading ? (
                         <StatSkeleton />
                     ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-8">
                             <StatCard
                                 title="Total Donasi Terkumpul"
                                 value={formatCurrency(data?.totalDonasi || 0)}
@@ -256,38 +244,46 @@ export default function DashboardPage() {
                                 </Link>
                             </div>
                             {data?.donasiPerMasjid && data.donasiPerMasjid.length > 0 ? (
-                                <ResponsiveContainer width="100%" height={280}>
-                                    <BarChart data={data.donasiPerMasjid} barSize={32}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                                        <XAxis
-                                            dataKey="nama_masjid"
-                                            tick={{ fill: '#64748b', fontSize: 11 }}
-                                            axisLine={{ stroke: '#e2e8f0' }}
-                                            tickLine={false}
-                                        />
-                                        <YAxis
-                                            tick={{ fill: '#64748b', fontSize: 11 }}
-                                            axisLine={{ stroke: '#e2e8f0' }}
-                                            tickLine={false}
-                                            tickFormatter={(v) => `${(v / 1000000).toFixed(1)}jt`}
-                                        />
-                                        <Tooltip
-                                            contentStyle={{
-                                                background: '#ffffff',
-                                                border: '1px solid #e2e8f0',
-                                                borderRadius: '12px',
-                                                fontSize: '13px',
-                                                color: '#0f172a',
-                                            }}
-                                            formatter={(value: any) => [formatCurrency(Number(value)), 'Total Donasi']}
-                                        />
-                                        <Bar dataKey="total" fill="url(#colorGradient)" radius={[20, 20, 20, 20]}>
-                                            {data.donasiPerMasjid.map((_, index) => (
-                                                <Cell key={index} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                                            ))}
-                                        </Bar>
-                                    </BarChart>
-                                </ResponsiveContainer>
+                                <div className="w-full overflow-x-auto pb-2">
+                                    <div className="min-w-[500px]">
+                                        <ResponsiveContainer width="100%" height={280}>
+                                            <BarChart data={data.donasiPerMasjid} barSize={24}>
+                                                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                                                <XAxis
+                                                    dataKey="nama_masjid"
+                                                    tick={{ fill: '#64748b', fontSize: 10 }}
+                                                    axisLine={{ stroke: '#e2e8f0' }}
+                                                    tickLine={false}
+                                                    interval={0}
+                                                    angle={-45}
+                                                    textAnchor="end"
+                                                    height={60}
+                                                />
+                                                <YAxis
+                                                    tick={{ fill: '#64748b', fontSize: 10 }}
+                                                    axisLine={{ stroke: '#e2e8f0' }}
+                                                    tickLine={false}
+                                                    tickFormatter={(v) => `${(v / 1000000).toFixed(1)}jt`}
+                                                />
+                                                <Tooltip
+                                                    contentStyle={{
+                                                        background: '#ffffff',
+                                                        border: '1px solid #e2e8f0',
+                                                        borderRadius: '12px',
+                                                        fontSize: '13px',
+                                                        color: '#0f172a',
+                                                    }}
+                                                    formatter={(value: any) => [formatCurrency(Number(value)), 'Total Donasi']}
+                                                />
+                                                <Bar dataKey="total" fill="url(#colorGradient)" radius={[20, 20, 20, 20]}>
+                                                    {data.donasiPerMasjid.map((_, index) => (
+                                                        <Cell key={index} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                                                    ))}
+                                                </Bar>
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </div>
                             ) : (
                                 <div className="h-[280px] flex items-center justify-center text-dark-500 text-sm">
                                     Belum ada data donasi
