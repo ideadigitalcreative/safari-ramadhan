@@ -21,6 +21,7 @@ import {
     Clock,
     TrendingUp,
 } from 'lucide-react';
+import Swal from 'sweetalert2';
 
 export default function KomitmenPage() {
     const [komitmenList, setKomitmenList] = useState<KomitmenWithDonatur[]>([]);
@@ -30,7 +31,6 @@ export default function KomitmenPage() {
     const [editItem, setEditItem] = useState<KomitmenWithDonatur | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [filterStatus, setFilterStatus] = useState('semua');
-    const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
     const [formData, setFormData] = useState({
         donatur_id: '',
@@ -86,6 +86,14 @@ export default function KomitmenPage() {
                     .update(dataToSave)
                     .eq('id', editItem.id);
                 if (error) throw error;
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Berhasil!',
+                    text: 'Komitmen telah diperbarui.',
+                    timer: 2000,
+                    showConfirmButton: false,
+                });
             } else {
                 const { error } = await (supabase.from('komitmen') as any)
                     .insert({
@@ -93,14 +101,27 @@ export default function KomitmenPage() {
                         total_terbayar: 0,
                     });
                 if (error) throw error;
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Berhasil!',
+                    text: 'Komitmen baru telah dimulai.',
+                    timer: 2000,
+                    showConfirmButton: false,
+                });
             }
 
             setShowModal(false);
             setEditItem(null);
             resetForm();
             fetchData();
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error saving komitmen:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Gagal!',
+                text: 'Terjadi kesalahan: ' + error.message,
+            });
         }
     };
 
@@ -116,13 +137,38 @@ export default function KomitmenPage() {
     };
 
     const handleDelete = async (id: string) => {
-        try {
-            const { error } = await supabase.from('komitmen').delete().eq('id', id);
-            if (error) throw error;
-            setDeleteConfirm(null);
-            fetchData();
-        } catch (error) {
-            console.error('Error deleting komitmen:', error);
+        const result = await Swal.fire({
+            title: 'Hapus Komitmen?',
+            text: "Riwayat donasi akan tetap tersimpan di catatan donasi.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: 'Ya, Hapus!',
+            cancelButtonText: 'Batal',
+        });
+
+        if (result.isConfirmed) {
+            try {
+                const { error } = await supabase.from('komitmen').delete().eq('id', id);
+                if (error) throw error;
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Terhapus!',
+                    text: 'Data komitmen telah dihapus.',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+                fetchData();
+            } catch (error: any) {
+                console.error('Error deleting komitmen:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal!',
+                    text: 'Gagal menghapus komitmen.',
+                });
+            }
         }
     };
 
@@ -291,7 +337,7 @@ export default function KomitmenPage() {
                                                 <Edit3 className="w-3.5 h-3.5" /> Edit
                                             </button>
                                             <button
-                                                onClick={() => setDeleteConfirm(item.id)}
+                                                onClick={() => handleDelete(item.id)}
                                                 className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center text-red-600 hover:bg-red-100 transition-colors"
                                             >
                                                 <Trash2 className="w-4 h-4" />
@@ -401,24 +447,6 @@ export default function KomitmenPage() {
                         </button>
                     </div>
                 </form>
-            </Modal>
-
-            {/* Delete Confirmation */}
-            <Modal isOpen={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} title="Hapus Komitmen" size="sm">
-                <div className="text-center">
-                    <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4 border border-red-100">
-                        <Trash2 className="w-8 h-8 text-red-600" />
-                    </div>
-                    <p className="text-dark-900 font-medium mb-6">Hapus data komitmen ini? Riwayat donasi tetap akan tersimpan di catatan donasi.</p>
-                    <div className="flex gap-3">
-                        <button onClick={() => deleteConfirm && handleDelete(deleteConfirm)} className="btn-danger flex-1 justify-center">
-                            Ya, Hapus
-                        </button>
-                        <button onClick={() => setDeleteConfirm(null)} className="btn-secondary flex-1 justify-center">
-                            Batal
-                        </button>
-                    </div>
-                </div>
             </Modal>
         </div>
     );

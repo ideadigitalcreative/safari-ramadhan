@@ -22,6 +22,7 @@ import {
     Handshake,
     UserCheck,
 } from 'lucide-react';
+import Swal from 'sweetalert2';
 
 interface DonaturWithHistory extends Donatur {
     total_donasi: number;
@@ -36,7 +37,6 @@ export default function DonaturPage() {
     const [editItem, setEditItem] = useState<Donatur | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [filterJenis, setFilterJenis] = useState('semua');
-    const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
     const [detailDonatur, setDetailDonatur] = useState<string | null>(null);
     const [donaturDonasi, setDonaturDonasi] = useState<(Donasi & { jadwal_safari?: JadwalSafari })[]>([]);
     const [loadingDetail, setLoadingDetail] = useState(false);
@@ -136,10 +136,26 @@ export default function DonaturPage() {
                     .update(formData)
                     .eq('id', editItem.id);
                 if (error) throw error;
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Berhasil!',
+                    text: 'Data donatur telah diperbarui.',
+                    timer: 2000,
+                    showConfirmButton: false,
+                });
             } else {
                 const { error } = await (supabase.from('donatur') as any)
                     .insert(formData);
                 if (error) throw error;
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Berhasil!',
+                    text: 'Donatur baru telah ditambahkan.',
+                    timer: 2000,
+                    showConfirmButton: false,
+                });
             }
             setShowModal(false);
             setEditItem(null);
@@ -147,7 +163,11 @@ export default function DonaturPage() {
             fetchDonatur();
         } catch (error: any) {
             console.error('Error saving donatur:', error);
-            alert('Gagal menyimpan donatur: ' + (error.message || 'Terjadi kesalahan sistem'));
+            Swal.fire({
+                icon: 'error',
+                title: 'Gagal!',
+                text: 'Terjadi kesalahan: ' + error.message,
+            });
         }
     };
 
@@ -165,13 +185,38 @@ export default function DonaturPage() {
     };
 
     const handleDelete = async (id: string) => {
-        try {
-            const { error } = await supabase.from('donatur').delete().eq('id', id);
-            if (error) throw error;
-            setDeleteConfirm(null);
-            fetchDonatur();
-        } catch (error) {
-            console.error('Error deleting donatur:', error);
+        const result = await Swal.fire({
+            title: 'Hapus Donatur?',
+            text: "Seluruh riwayat donasi terkait juga akan terhapus!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: 'Ya, Hapus!',
+            cancelButtonText: 'Batal',
+        });
+
+        if (result.isConfirmed) {
+            try {
+                const { error } = await supabase.from('donatur').delete().eq('id', id);
+                if (error) throw error;
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Terhapus!',
+                    text: 'Data donatur telah dihapus.',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+                fetchDonatur();
+            } catch (error: any) {
+                console.error('Error deleting donatur:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal!',
+                    text: 'Gagal menghapus donatur.',
+                });
+            }
         }
     };
 
@@ -304,7 +349,6 @@ export default function DonaturPage() {
                                 <div
                                     key={item.id}
                                     className="glass-card p-5"
-                                    style={{ animation: `slideInLeft 0.3s ease ${index * 0.05}s both` }}
                                 >
                                     <div className="flex items-start justify-between mb-4">
                                         <div className="flex items-center gap-3">
@@ -371,7 +415,7 @@ export default function DonaturPage() {
                                             <Edit3 className="w-3.5 h-3.5" />
                                         </button>
                                         <button
-                                            onClick={() => setDeleteConfirm(item.id)}
+                                            onClick={() => handleDelete(item.id)}
                                             className="w-9 h-9 rounded-xl bg-red-50 flex items-center justify-center text-red-600 hover:bg-red-100 transition-colors"
                                         >
                                             <Trash2 className="w-3.5 h-3.5" />
@@ -514,25 +558,6 @@ export default function DonaturPage() {
                         </div>
                     </div>
                 )}
-            </Modal>
-
-            {/* Delete Confirmation */}
-            <Modal isOpen={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} title="Hapus Donatur" size="sm">
-                <div className="text-center">
-                    <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4 border border-red-100">
-                        <Trash2 className="w-8 h-8 text-red-600" />
-                    </div>
-                    <p className="text-dark-900 font-medium mb-2">Apakah Anda yakin ingin menghapus donatur ini?</p>
-                    <p className="text-dark-500 text-xs mb-6">Semua data donasi terkait juga akan terhapus.</p>
-                    <div className="flex gap-3">
-                        <button onClick={() => deleteConfirm && handleDelete(deleteConfirm)} className="btn-danger flex-1 justify-center">
-                            Ya, Hapus
-                        </button>
-                        <button onClick={() => setDeleteConfirm(null)} className="btn-secondary flex-1 justify-center">
-                            Batal
-                        </button>
-                    </div>
-                </div>
             </Modal>
         </div>
     );

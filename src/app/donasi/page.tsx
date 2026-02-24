@@ -23,6 +23,7 @@ import {
     UserCheck,
     Phone,
 } from 'lucide-react';
+import Swal from 'sweetalert2';
 
 export default function DonasiPage() {
     const [donasiList, setDonasiList] = useState<DonasiWithRelations[]>([]);
@@ -32,7 +33,6 @@ export default function DonasiPage() {
     const [showModal, setShowModal] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [filterMetode, setFilterMetode] = useState('semua');
-    const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
     const [previewImage, setPreviewImage] = useState<string | null>(null);
 
     const [formData, setFormData] = useState({
@@ -209,23 +209,59 @@ export default function DonasiPage() {
                 if (error) throw error;
             }
 
+            Swal.fire({
+                icon: 'success',
+                title: 'Berhasil!',
+                text: 'Donasi telah berhasil dicatat.',
+                timer: 2000,
+                showConfirmButton: false,
+            });
             setShowModal(false);
             resetForm();
             fetchData();
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error saving donasi:', error);
-            alert('Gagal menyimpan donasi: ' + (error as any).message);
+            Swal.fire({
+                icon: 'error',
+                title: 'Gagal!',
+                text: 'Gagal menyimpan donasi: ' + error.message,
+            });
         }
     };
 
     const handleDelete = async (id: string) => {
-        try {
-            const { error } = await supabase.from('donasi').delete().eq('id', id);
-            if (error) throw error;
-            setDeleteConfirm(null);
-            fetchData();
-        } catch (error) {
-            console.error('Error deleting donasi:', error);
+        const result = await Swal.fire({
+            title: 'Hapus Donasi?',
+            text: "Data donasi ini akan dihapus permanen!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: 'Ya, Hapus!',
+            cancelButtonText: 'Batal',
+        });
+
+        if (result.isConfirmed) {
+            try {
+                const { error } = await supabase.from('donasi').delete().eq('id', id);
+                if (error) throw error;
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Terhapus!',
+                    text: 'Data donasi telah dihapus.',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+                fetchData();
+            } catch (error: any) {
+                console.error('Error deleting donasi:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal!',
+                    text: 'Gagal menghapus donasi.',
+                });
+            }
         }
     };
 
@@ -314,10 +350,14 @@ export default function DonasiPage() {
                                 <div className="w-12 h-12 rounded-2xl bg-primary-50 flex items-center justify-center">
                                     <Heart className="w-6 h-6 text-primary-500" />
                                 </div>
-                                <div>
-                                    <p className="text-xs text-dark-500 font-medium uppercase tracking-wider">Total Ditampilkan</p>
-                                    <p className="text-2xl font-bold text-dark-900">{formatCurrency(totalFiltered)}</p>
-                                </div>
+                                {loading ? (
+                                    <div className="h-8 w-32 bg-primary-100 animate-pulse rounded-lg" />
+                                ) : (
+                                    <div>
+                                        <p className="text-xs text-dark-500 font-medium uppercase tracking-wider">Total Ditampilkan</p>
+                                        <p className="text-2xl font-bold text-dark-900">{formatCurrency(totalFiltered)}</p>
+                                    </div>
+                                )}
                             </div>
                             <p className="text-sm text-dark-500">{formatNumber(filteredList.length)} transaksi</p>
                         </div>
@@ -428,7 +468,7 @@ export default function DonasiPage() {
                                                     <td className="py-4 px-6">
                                                         <div className="flex items-center justify-end">
                                                             <button
-                                                                onClick={() => setDeleteConfirm(item.id)}
+                                                                onClick={() => handleDelete(item.id)}
                                                                 className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center text-red-400 hover:bg-red-500/20 transition-colors"
                                                             >
                                                                 <Trash2 className="w-3.5 h-3.5" />
@@ -466,7 +506,7 @@ export default function DonasiPage() {
                                                 </span>
                                             </div>
                                             <button
-                                                onClick={() => setDeleteConfirm(item.id)}
+                                                onClick={() => handleDelete(item.id)}
                                                 className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center text-red-400"
                                             >
                                                 <Trash2 className="w-3.5 h-3.5" />
@@ -715,24 +755,6 @@ export default function DonasiPage() {
                         </button>
                     </div>
                 </form>
-            </Modal>
-
-            {/* Delete Confirmation */}
-            <Modal isOpen={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} title="Hapus Donasi" size="sm">
-                <div className="text-center">
-                    <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4 border border-red-100">
-                        <Trash2 className="w-8 h-8 text-red-600" />
-                    </div>
-                    <p className="text-dark-900 font-medium mb-6">Apakah Anda yakin ingin menghapus data donasi ini?</p>
-                    <div className="flex gap-3">
-                        <button onClick={() => deleteConfirm && handleDelete(deleteConfirm)} className="btn-danger flex-1 justify-center">
-                            Ya, Hapus
-                        </button>
-                        <button onClick={() => setDeleteConfirm(null)} className="btn-secondary flex-1 justify-center">
-                            Batal
-                        </button>
-                    </div>
-                </div>
             </Modal>
 
             {/* Image Preview */}
