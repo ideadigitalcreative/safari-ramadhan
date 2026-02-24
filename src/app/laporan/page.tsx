@@ -13,7 +13,12 @@ import {
     Download,
     MapPin,
     Heart,
+    FileText,
+    FileOutput,
 } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 import {
     BarChart,
     Bar,
@@ -135,21 +140,51 @@ export default function LaporanPage() {
         fetchReports();
     }, [fetchReports]);
 
-    const exportCSV = () => {
-        const headers = ['Masjid', 'Alamat', 'Total Donasi', 'Jumlah Transaksi'];
-        const rows = masjidReports.map((r) => [
+    const exportPDF = () => {
+        const doc = new jsPDF();
+        doc.text('Laporan Donasi Safari Ramadhan', 14, 15);
+        doc.setFontSize(10);
+        doc.text(`Periode: ${filterPeriode.replace('_', ' ')} | Masjid: ${filterMasjid}`, 14, 22);
+        doc.text(`Total Keseluruhan: ${formatCurrency(totalKeseluruhan)}`, 14, 29);
+        doc.text(`Tanggal Cetak: ${new Date().toLocaleDateString('id-ID')}`, 14, 36);
+
+        const tableData = masjidReports.map((r, i) => [
+            (i + 1).toString(),
             r.nama_masjid,
-            r.alamat || '-',
-            r.total_donasi.toString(),
-            r.jumlah_donasi.toString(),
+            formatNumber(r.jumlah_donasi),
+            formatCurrency(r.total_donasi),
         ]);
-        const csv = [headers, ...rows].map((r) => r.join(',')).join('\n');
-        const blob = new Blob([csv], { type: 'text/csv' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `laporan-donasi-${new Date().toISOString().split('T')[0]}.csv`;
-        a.click();
+
+        autoTable(doc, {
+            startY: 42,
+            head: [['#', 'Nama Masjid', 'Transaksi', 'Total Donasi']],
+            body: tableData,
+            theme: 'grid',
+            headStyles: { fillColor: [124, 58, 237], textColor: [255, 255, 255], fontStyle: 'bold' },
+            styles: { fontSize: 9 },
+            columnStyles: {
+                0: { cellWidth: 10 },
+                2: { halign: 'center' },
+                3: { halign: 'right' }
+            }
+        });
+
+        doc.save(`laporan-donasi-${new Date().toISOString().split('T')[0]}.pdf`);
+    };
+
+    const exportExcel = () => {
+        const worksheet = XLSX.utils.json_to_sheet(
+            masjidReports.map((r, i) => ({
+                'No': i + 1,
+                'Nama Masjid': r.nama_masjid,
+                'Alamat': r.alamat || '-',
+                'Jumlah Transaksi': r.jumlah_donasi,
+                'Total Donasi (Rp)': r.total_donasi,
+            }))
+        );
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Laporan Donasi');
+        XLSX.writeFile(workbook, `laporan-donasi-${new Date().toISOString().split('T')[0]}.xlsx`);
     };
 
     return (
@@ -165,9 +200,14 @@ export default function LaporanPage() {
                             </h1>
                             <p className="text-dark-500 text-sm">Total donasi per lokasi dan periode waktu</p>
                         </div>
-                        <button onClick={exportCSV} className="btn-secondary">
-                            <Download className="w-4 h-4" /> Export CSV
-                        </button>
+                        <div className="flex gap-2">
+                            <button onClick={exportPDF} className="btn-secondary !bg-red-50 !text-red-600 !border-red-100 hover:!bg-red-100">
+                                <FileText className="w-4 h-4" /> Export PDF
+                            </button>
+                            <button onClick={exportExcel} className="btn-secondary !bg-emerald-50 !text-emerald-600 !border-emerald-100 hover:!bg-emerald-100">
+                                <FileOutput className="w-4 h-4" /> Export Excel
+                            </button>
+                        </div>
                     </div>
 
                     {/* Filters */}
@@ -258,7 +298,7 @@ export default function LaporanPage() {
                                                     }}
                                                     formatter={(value: any) => [formatCurrency(Number(value)), 'Total']}
                                                 />
-                                                <Bar dataKey="total_donasi" radius={[0, 8, 8, 0]}>
+                                                <Bar dataKey="total_donasi" radius={[10, 10, 10, 10]}>
                                                     {masjidReports.map((_, index) => (
                                                         <Cell key={index} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                                                     ))}

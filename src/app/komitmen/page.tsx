@@ -32,6 +32,17 @@ export default function KomitmenPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [filterStatus, setFilterStatus] = useState('semua');
 
+    // Payment state
+    const [showPaymentModal, setShowPaymentModal] = useState(false);
+    const [paymentItem, setPaymentItem] = useState<KomitmenWithDonatur | null>(null);
+    const [jadwalList, setJadwalList] = useState<any[]>([]);
+    const [paymentData, setPaymentData] = useState({
+        nominal: '',
+        jadwal_safari_id: '',
+        metode_pembayaran: 'cash' as 'cash' | 'transfer',
+        tanggal: new Date().toISOString().split('T')[0],
+    });
+
     const [formData, setFormData] = useState({
         donatur_id: '',
         total_komitmen: '',
@@ -60,6 +71,13 @@ export default function KomitmenPage() {
 
             setKomitmenList(komitmenData as KomitmenWithDonatur[] || []);
             setDonaturList(donaturData as Donatur[] || []);
+
+            // Fetch jadwal for donation linking
+            const { data: jadwalData } = await supabase
+                .from('jadwal_safari')
+                .select('*')
+                .order('tanggal', { ascending: false });
+            setJadwalList(jadwalData || []);
         } catch (error) {
             console.error('Error fetching data:', error);
         } finally {
@@ -179,6 +197,64 @@ export default function KomitmenPage() {
             target_pelunasan: '',
             status: 'aktif',
         });
+    };
+
+    const handlePay = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!paymentItem) return;
+
+        try {
+            const nominal = parseFloat(paymentData.nominal);
+            if (isNaN(nominal) || nominal <= 0) throw new Error('Nominal tidak valid');
+
+            // 1. Record the donation
+            const { error: dError } = await (supabase.from('donasi') as any).insert({
+                tanggal: paymentData.tanggal,
+                donatur_id: paymentItem.donatur_id,
+                nominal: nominal,
+                metode_pembayaran: paymentData.metode_pembayaran,
+                jadwal_safari_id: paymentData.jadwal_safari_id,
+                keterangan: `Cicilan komitmen untuk ${paymentItem.donatur?.nama}`,
+            });
+            if (dError) throw dError;
+
+            // 2. Update commitment progress
+            const newTotalPaid = Number(paymentItem.total_terbayar) + nominal;
+            const newStatus = newTotalPaid >= Number(paymentItem.total_komitmen) ? 'lunas' : 'aktif';
+
+            const { error: kError } = await (supabase.from('komitmen') as any)
+                .update({
+                    total_terbayar: newTotalPaid,
+                    status: newStatus,
+                })
+                .eq('id', paymentItem.id);
+            if (kError) throw kError;
+
+            Swal.fire({
+                icon: 'success',
+                title: 'Berhasil!',
+                text: 'Pembayaran cicilan telah dicatat.',
+                timer: 2000,
+                showConfirmButton: false,
+            });
+
+            setShowPaymentModal(false);
+            setPaymentItem(null);
+            setPaymentData({
+                nominal: '',
+                jadwal_safari_id: '',
+                metode_pembayaran: 'cash',
+                tanggal: new Date().toISOString().split('T')[0],
+            });
+            fetchData();
+        } catch (error: any) {
+            console.error('Error recording payment:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Gagal!',
+                text: error.message,
+            });
+        }
     };
 
     const filteredList = komitmenList.filter((item) => {
@@ -331,6 +407,18 @@ export default function KomitmenPage() {
 
                                         <div className="mt-6 flex gap-2">
                                             <button
+                                                onClick={() => {
+                                                    setPaymentItem(item);
+                                                    setShowPaymentModal(true);
+                                                    if (jadwalList.length > 0 && !paymentData.jadwal_safari_id) {
+                                                        setPaymentData(prev => ({ ...prev, jadwal_safari_id: jadwalList[0].id }));
+                                                    }
+                                                }}
+                                                className="flex-[2] py-2 rounded-xl bg-primary-600 text-white text-xs font-bold hover:bg-primary-700 transition-colors flex items-center justify-center gap-1.5 shadow-sm shadow-primary-200"
+                                            >
+                                                <TrendingUp className="w-3.5 h-3.5" /> Bayar Cicilan
+                                            </button>
+                                            <button
                                                 onClick={() => handleEdit(item)}
                                                 className="flex-1 py-2 rounded-xl bg-blue-50 text-blue-600 text-xs font-semibold hover:bg-blue-100 transition-colors flex items-center justify-center gap-1.5"
                                             >
@@ -443,6 +531,96 @@ export default function KomitmenPage() {
                             {editItem ? 'Simpan Perubahan' : 'Mulai Komitmen'}
                         </button>
                         <button type="button" onClick={() => { setShowModal(false); setEditItem(null); resetForm(); }} className="btn-secondary">
+                            Batal
+                        </button>
+                    </div>
+                </form>
+            </Modal>
+            {/* Payment Modal */}
+            <Modal
+                isOpen={showPaymentModal}
+                onClose={() => { setShowPaymentModal(false); setPaymentItem(null); }}
+                title={`Tambah Donasi: ${paymentItem?.donatur?.nama}`}
+            >
+                <form onSubmit={handlePay} className="space-y-4">
+                    <div className="p-4 rounded-2xl bg-primary-50 border border-primary-100 mb-2">
+                        <div className="flex justify-between items-center text-xs text-primary-600 font-bold uppercase tracking-wider mb-2">
+                            <span>Sisa Komitmen</span>
+                            <span>Total</span>
+                        </div>
+                        <div className="flex justify-between items-end">
+                            <span className="text-xl font-black text-primary-700">
+                                {paymentItem ? formatCurrency(Number(paymentItem.total_komitmen) - Number(paymentItem.total_terbayar)) : 'Rp0'}
+                            </span>
+                            <span className="text-sm font-bold text-primary-400">
+                                / {paymentItem ? formatCurrency(Number(paymentItem.total_komitmen)) : 'Rp0'}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="form-label">Nominal Pembayaran (Rp)</label>
+                        <div className="relative">
+                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-primary-500 font-semibold text-sm">Rp</span>
+                            <input
+                                type="text"
+                                inputMode="numeric"
+                                required
+                                placeholder="0"
+                                value={formatInputNumber(paymentData.nominal)}
+                                onChange={(e) => setPaymentData({ ...paymentData, nominal: e.target.value.replace(/[^0-9]/g, '') })}
+                                className="form-input pl-11"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="form-label">Tanggal Bayar</label>
+                            <input
+                                type="date"
+                                required
+                                value={paymentData.tanggal}
+                                onChange={(e) => setPaymentData({ ...paymentData, tanggal: e.target.value })}
+                                className="form-input"
+                            />
+                        </div>
+                        <div>
+                            <label className="form-label">Metode</label>
+                            <select
+                                value={paymentData.metode_pembayaran}
+                                onChange={(e) => setPaymentData({ ...paymentData, metode_pembayaran: e.target.value as any })}
+                                className="form-select"
+                            >
+                                <option value="cash">Cash</option>
+                                <option value="transfer">Transfer</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="form-label">Pilih Lokasi Safari (Masjid)</label>
+                        <select
+                            required
+                            value={paymentData.jadwal_safari_id}
+                            onChange={(e) => setPaymentData({ ...paymentData, jadwal_safari_id: e.target.value })}
+                            className="form-select"
+                        >
+                            <option value="">-- Pilih Lokasi --</option>
+                            {jadwalList.map((j) => (
+                                <option key={j.id} value={j.id}>
+                                    {j.nama_masjid} ({new Date(j.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })})
+                                </option>
+                            ))}
+                        </select>
+                        <p className="text-[10px] text-dark-400 mt-1">Donasi harus dikaitkan dengan jadwal safari untuk keperluan laporan.</p>
+                    </div>
+
+                    <div className="flex gap-3 pt-4">
+                        <button type="submit" className="btn-primary flex-1 justify-center">
+                            Konfirmasi Pembayaran
+                        </button>
+                        <button type="button" onClick={() => { setShowPaymentModal(false); setPaymentItem(null); }} className="btn-secondary">
                             Batal
                         </button>
                     </div>

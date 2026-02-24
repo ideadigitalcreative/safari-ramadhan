@@ -281,7 +281,7 @@ export default function DashboardPage() {
                                             }}
                                             formatter={(value: any) => [formatCurrency(Number(value)), 'Total Donasi']}
                                         />
-                                        <Bar dataKey="total" fill="url(#colorGradient)" radius={[8, 8, 0, 0]}>
+                                        <Bar dataKey="total" fill="url(#colorGradient)" radius={[20, 20, 20, 20]}>
                                             {data.donasiPerMasjid.map((_, index) => (
                                                 <Cell key={index} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                                             ))}
