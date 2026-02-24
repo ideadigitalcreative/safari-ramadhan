@@ -62,7 +62,7 @@ export default function Sidebar() {
                 style={{ borderRadius: 0, borderTop: 'none', borderLeft: 'none', borderRight: 'none' }}>
                 <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center">
-                        <Star className="w-5 h-5 text-white" />
+                        <Heart className="w-5 h-5 text-white fill-white" />
                     </div>
                     <span className="font-bold text-sm gradient-text">Safari Ramadhan</span>
                 </div>
@@ -98,7 +98,7 @@ export default function Sidebar() {
                 <div className="p-6 pb-4">
                     <div className="flex items-center gap-3 mb-1">
                         <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center shadow-lg shadow-primary-500/20">
-                            <Star className="w-6 h-6 text-white" />
+                            <Heart className="w-6 h-6 text-white fill-white" />
                         </div>
                         <div>
                             <h1 className="font-bold text-lg gradient-text leading-tight">Safari Ramadhan</h1>
