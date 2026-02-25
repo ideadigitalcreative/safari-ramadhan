@@ -13,6 +13,7 @@ import {
   Sun,
   Moon,
   ArrowRight,
+  MoreVertical,
   Search,
   Filter,
   Star,
@@ -35,7 +36,17 @@ import Link from 'next/link';
 const WAKTU_LABELS: Record<string, { label: string; icon: typeof Sunrise; color: string; bgColor: string }> = {
   subuh: { label: 'Subuh', icon: Sunrise, color: 'text-blue-600', bgColor: 'bg-blue-50' },
   dzuhur: { label: 'Dzuhur', icon: Sun, color: 'text-amber-600', bgColor: 'bg-amber-50' },
+  ashar: { label: 'Ashar', icon: Sun, color: 'text-orange-600', bgColor: 'bg-orange-50' },
   isya: { label: 'Isya', icon: Moon, color: 'text-indigo-600', bgColor: 'bg-indigo-50' },
+  lainnya: { label: 'Lainnya', icon: MoreVertical, color: 'text-slate-600', bgColor: 'bg-slate-50' },
+};
+
+const WAKTU_ORDER: Record<string, number> = {
+  subuh: 1,
+  dzuhur: 2,
+  ashar: 3,
+  isya: 4,
+  lainnya: 5
 };
 
 export default function LandingPage() {
@@ -83,6 +94,8 @@ export default function LandingPage() {
     const key = item.tanggal;
     if (!acc[key]) acc[key] = [];
     acc[key].push(item);
+    // Sort items within each date based on WAKTU_ORDER
+    acc[key].sort((a, b) => (WAKTU_ORDER[a.waktu_sholat] || 99) - (WAKTU_ORDER[b.waktu_sholat] || 99));
     return acc;
   }, {} as Record<string, JadwalSafari[]>);
 
@@ -268,7 +281,9 @@ export default function LandingPage() {
                   <option value="semua">Semua Waktu</option>
                   <option value="subuh">Subuh</option>
                   <option value="dzuhur">Dzuhur</option>
+                  <option value="ashar">Ashar</option>
                   <option value="isya">Isya</option>
+                  <option value="lainnya">Lainnya</option>
                 </select>
               </div>
             </div>
@@ -337,7 +352,7 @@ export default function LandingPage() {
                           </p>
                         )}
                         <div className="pt-3 border-t border-dark-50 flex items-center justify-between">
-                          <span className={`text-[10px] font-black uppercase tracking-widest ${config.color}`}>Waktu {config.label}</span>
+                          <span className={`text-[10px] font-black uppercase tracking-widest ${config.color}`}>Waktu {item.waktu_sholat === 'lainnya' && item.waktu_lainnya ? item.waktu_lainnya : config.label}</span>
                           <Link href={`#`} className="text-primary-600 text-[9px] font-black uppercase tracking-widest flex items-center gap-1 hover:gap-1.5 transition-all">
                             Detail <ArrowRight className="w-3 h-3" />
                           </Link>

@@ -15,13 +15,24 @@ import {
     Sun,
     Moon,
     ArrowLeft,
+    MoreVertical,
 } from 'lucide-react';
 import Link from 'next/link';
 
 const WAKTU_LABELS: Record<string, { label: string; icon: typeof Sunrise; color: string; bgColor: string }> = {
     subuh: { label: 'Subuh', icon: Sunrise, color: 'text-blue-600', bgColor: 'bg-blue-50' },
     dzuhur: { label: 'Dzuhur', icon: Sun, color: 'text-amber-600', bgColor: 'bg-amber-50' },
+    ashar: { label: 'Ashar', icon: Sun, color: 'text-orange-600', bgColor: 'bg-orange-50' },
     isya: { label: 'Isya', icon: Moon, color: 'text-indigo-600', bgColor: 'bg-indigo-50' },
+    lainnya: { label: 'Lainnya', icon: MoreVertical, color: 'text-slate-600', bgColor: 'bg-slate-50' },
+};
+
+const WAKTU_ORDER: Record<string, number> = {
+    subuh: 1,
+    dzuhur: 2,
+    ashar: 3,
+    isya: 4,
+    lainnya: 5
 };
 
 export default function JadwalDetailPage({ params }: { params: Promise<{ date: string }> }) {
@@ -35,10 +46,14 @@ export default function JadwalDetailPage({ params }: { params: Promise<{ date: s
             const { data, error } = await (supabase
                 .from('jadwal_safari')
                 .select('*')
-                .eq('tanggal', date)
-                .order('waktu_sholat', { ascending: true }) as any);
+                .eq('tanggal', date) as any);
             if (error) throw error;
-            setJadwalList(data || []);
+
+            const sortedData = (data || []).sort((a: any, b: any) =>
+                (WAKTU_ORDER[a.waktu_sholat] || 99) - (WAKTU_ORDER[b.waktu_sholat] || 99)
+            );
+
+            setJadwalList(sortedData);
         } catch (error) {
             console.error('Error fetching detail jadwal:', error);
         } finally {
@@ -113,7 +128,7 @@ export default function JadwalDetailPage({ params }: { params: Promise<{ date: s
                                                     <div>
                                                         <div className="flex items-center gap-2 mb-1">
                                                             <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${waktu.bgColor} ${waktu.color}`}>
-                                                                {waktu.label}
+                                                                {item.waktu_sholat === 'lainnya' && item.waktu_lainnya ? item.waktu_lainnya : waktu.label}
                                                             </span>
                                                             <span className={`badge text-[10px] ${getStatusColor(item.status)}`}>
                                                                 {getStatusLabel(item.status)}

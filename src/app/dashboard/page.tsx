@@ -15,6 +15,7 @@ import {
     MapPin,
     ArrowRight,
     Landmark,
+    MoreVertical,
     Sunrise,
     Sun,
     Moon,
@@ -42,6 +43,7 @@ interface DashboardData {
         tanggal: string;
         ramadhan_ke: number;
         waktu_sholat: string;
+        waktu_lainnya: string | null;
         nama_masjid: string;
         status: string;
     }[];
@@ -368,7 +370,9 @@ export default function DashboardPage() {
                                         const waktuConfig: Record<string, { label: string; Icon: typeof Sunrise; color: string; bg: string }> = {
                                             subuh: { label: 'Subuh', Icon: Sunrise, color: 'text-blue-600', bg: 'bg-blue-50' },
                                             dzuhur: { label: 'Dzuhur', Icon: Sun, color: 'text-amber-600', bg: 'bg-amber-50' },
+                                            ashar: { label: 'Ashar', Icon: Sun, color: 'text-orange-600', bg: 'bg-orange-50' },
                                             isya: { label: 'Isya', Icon: Moon, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+                                            lainnya: { label: 'Lainnya', Icon: MoreVertical, color: 'text-slate-600', bg: 'bg-slate-50' },
                                         };
                                         const wk = waktuConfig[jadwal.waktu_sholat] || waktuConfig.subuh;
                                         return (
@@ -389,7 +393,7 @@ export default function DashboardPage() {
                                                     <p className="font-bold text-dark-900 text-sm truncate">{jadwal.nama_masjid}</p>
                                                     <div className="flex items-center gap-2 mt-1">
                                                         <span className={`inline-flex items-center gap-1 text-[10px] font-bold ${wk.color}`}>
-                                                            <wk.Icon className="w-3 h-3" /> {wk.label}
+                                                            <wk.Icon className="w-3 h-3" /> {jadwal.waktu_sholat === 'lainnya' && (jadwal as any).waktu_lainnya ? (jadwal as any).waktu_lainnya : wk.label}
                                                         </span>
                                                         <span className="text-[10px] text-dark-400">•</span>
                                                         <span className="text-[10px] text-dark-500">Ke-{jadwal.ramadhan_ke}</span>

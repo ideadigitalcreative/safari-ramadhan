@@ -45,7 +45,17 @@ import Swal from 'sweetalert2';
 const WAKTU_LABELS: Record<string, { label: string; icon: typeof Sunrise; color: string; bgColor: string }> = {
     subuh: { label: 'Subuh', icon: Sunrise, color: 'text-blue-600', bgColor: 'bg-blue-50' },
     dzuhur: { label: 'Dzuhur', icon: Sun, color: 'text-amber-600', bgColor: 'bg-amber-50' },
+    ashar: { label: 'Ashar', icon: Sun, color: 'text-orange-600', bgColor: 'bg-orange-50' },
     isya: { label: 'Isya', icon: Moon, color: 'text-indigo-600', bgColor: 'bg-indigo-50' },
+    lainnya: { label: 'Lainnya', icon: MoreVertical, color: 'text-slate-600', bgColor: 'bg-slate-50' },
+};
+
+const WAKTU_ORDER: Record<string, number> = {
+    subuh: 1,
+    dzuhur: 2,
+    ashar: 3,
+    isya: 4,
+    lainnya: 5
 };
 
 export default function JadwalPage() {
@@ -66,7 +76,8 @@ export default function JadwalPage() {
     const [formData, setFormData] = useState({
         tanggal: '',
         ramadhan_ke: '',
-        waktu_sholat: 'subuh' as 'subuh' | 'dzuhur' | 'isya',
+        waktu_sholat: 'subuh' as 'subuh' | 'dzuhur' | 'ashar' | 'isya' | 'lainnya',
+        waktu_lainnya: '',
         nama_masjid: '',
         alamat: '',
         no_pengurus: '',
@@ -107,6 +118,7 @@ export default function JadwalPage() {
                 tanggal: formData.tanggal,
                 ramadhan_ke: Number(formData.ramadhan_ke),
                 waktu_sholat: formData.waktu_sholat,
+                waktu_lainnya: formData.waktu_sholat === 'lainnya' ? formData.waktu_lainnya : null,
                 nama_masjid: formData.nama_masjid,
                 alamat: formData.alamat || null,
                 no_pengurus: formData.no_pengurus || null,
@@ -160,6 +172,7 @@ export default function JadwalPage() {
             tanggal: item.tanggal,
             ramadhan_ke: String(item.ramadhan_ke),
             waktu_sholat: item.waktu_sholat,
+            waktu_lainnya: item.waktu_lainnya || '',
             nama_masjid: item.nama_masjid,
             alamat: item.alamat || '',
             no_pengurus: item.no_pengurus || '',
@@ -238,6 +251,7 @@ export default function JadwalPage() {
             tanggal: '',
             ramadhan_ke: '',
             waktu_sholat: 'subuh',
+            waktu_lainnya: '',
             nama_masjid: '',
             alamat: '',
             no_pengurus: '',
@@ -283,6 +297,8 @@ export default function JadwalPage() {
     const groupedJadwal = filteredList.reduce((acc, item) => {
         if (!acc[item.tanggal]) acc[item.tanggal] = [];
         acc[item.tanggal].push(item);
+        // Sort items within each date based on WAKTU_ORDER
+        acc[item.tanggal].sort((a, b) => (WAKTU_ORDER[a.waktu_sholat] || 99) - (WAKTU_ORDER[b.waktu_sholat] || 99));
         return acc;
     }, {} as Record<string, JadwalSafari[]>);
 
@@ -411,7 +427,9 @@ export default function JadwalPage() {
                                                 <option value="semua">Semua</option>
                                                 <option value="subuh">Subuh</option>
                                                 <option value="dzuhur">Dzuhur</option>
+                                                <option value="ashar">Ashar</option>
                                                 <option value="isya">Isya</option>
+                                                <option value="lainnya">Lainnya</option>
                                             </select>
                                         </div>
                                         <div>
@@ -476,7 +494,7 @@ export default function JadwalPage() {
                                                                 </div>
                                                                 <div>
                                                                     <span className={`text-[10px] font-black uppercase tracking-widest ${waktu.color}`}>
-                                                                        {waktu.label}
+                                                                        {item.waktu_sholat === 'lainnya' && item.waktu_lainnya ? item.waktu_lainnya : waktu.label}
                                                                     </span>
                                                                     <h4 className="font-bold text-dark-900 leading-tight">{item.nama_masjid}</h4>
                                                                 </div>
@@ -562,7 +580,7 @@ export default function JadwalPage() {
                     </div>
                     <div>
                         <label className="form-label">Waktu Sholat</label>
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                             {Object.entries(WAKTU_LABELS).map(([key, value]) => (
                                 <button
                                     key={key}
@@ -573,13 +591,29 @@ export default function JadwalPage() {
                                         : 'border-dark-100 bg-white hover:border-primary-100'
                                         }`}
                                 >
-                                    <span className={`text-xs font-bold ${formData.waktu_sholat === key ? 'text-primary-600' : 'text-dark-500'}`}>
-                                        {value.label}
-                                    </span>
+                                    <div className="flex flex-col items-center gap-1">
+                                        <value.icon className={`w-4 h-4 ${formData.waktu_sholat === key ? 'text-primary-600' : 'text-dark-400'}`} />
+                                        <span className={`text-[10px] font-bold ${formData.waktu_sholat === key ? 'text-primary-600' : 'text-dark-500'}`}>
+                                            {value.label}
+                                        </span>
+                                    </div>
                                 </button>
                             ))}
                         </div>
                     </div>
+                    {formData.waktu_sholat === 'lainnya' && (
+                        <div className="animate-in fade-in slide-in-from-top-2">
+                            <label className="form-label">Nama Kegiatan/Waktu (Lainnya)</label>
+                            <input
+                                type="text"
+                                required
+                                placeholder="Contoh: Buka Puasa Bersama / Kajian Sore"
+                                value={formData.waktu_lainnya}
+                                onChange={(e) => setFormData({ ...formData, waktu_lainnya: e.target.value })}
+                                className="form-input border-primary-200 focus:border-primary-500"
+                            />
+                        </div>
+                    )}
                     <div>
                         <label className="form-label">Nama Masjid</label>
                         <input
