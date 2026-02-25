@@ -169,11 +169,11 @@ export default function LandingPage() {
               <div className="flex items-center gap-4 bg-accent-50 px-5 py-2.5 rounded-2xl border border-accent-100">
                 <div className="text-center px-4 border-r border-accent-200">
                   <p className="text-[9px] uppercase font-black text-accent-600">Total Masjid</p>
-                  <p className="text-lg font-black text-dark-900">28</p>
+                  <p className="text-lg font-black text-dark-900">{new Set(jadwalList.map(j => j.nama_masjid)).size}</p>
                 </div>
                 <div className="text-center px-4">
                   <p className="text-[9px] uppercase font-black text-accent-600">Waktu Sholat</p>
-                  <p className="text-lg font-black text-dark-900">3</p>
+                  <p className="text-lg font-black text-dark-900">{new Set(jadwalList.map(j => j.waktu_sholat)).size}</p>
                 </div>
               </div>
             </div>
