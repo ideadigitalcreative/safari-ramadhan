@@ -154,7 +154,7 @@ export default function LandingPage() {
         </div>
 
         {/* Calendar Desktop Section */}
-        <div className="glass-card-static p-0 overflow-hidden shadow-2xl border-none mb-12">
+        <div className="glass-card-static p-0 overflow-hidden border-none mb-12">
           <div className="p-8 bg-white border-b border-dark-100">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
               <div className="flex items-center gap-4">
@@ -212,7 +212,7 @@ export default function LandingPage() {
                         } else if (status === 'completed') {
                           dayClasses += "bg-emerald-50 text-emerald-700 border border-emerald-100 hover:scale-105";
                         } else if (status === 'pending') {
-                          dayClasses += "bg-amber-50 text-amber-700 border border-amber-100 hover:scale-105 shadow-md shadow-amber-100/50";
+                          dayClasses += "bg-amber-50 text-amber-700 border-amber-100 hover:scale-105";
                         } else {
                           dayClasses += "bg-white text-dark-400 border border-dark-50 hover:border-primary-200 hover:bg-primary-50/30";
                         }
@@ -259,7 +259,7 @@ export default function LandingPage() {
 
         {/* Filters & Search */}
         <div className="sticky top-20 z-40 bg-dark-50/80 backdrop-blur-md py-4 mb-8">
-          <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex flex-row gap-2 md:gap-4">
             <div className="flex-1 relative">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-dark-400" />
               <input
@@ -353,7 +353,7 @@ export default function LandingPage() {
                         )}
                         <div className="pt-3 border-t border-dark-50 flex items-center justify-between">
                           <span className={`text-[10px] font-black uppercase tracking-widest ${config.color}`}>Waktu {item.waktu_sholat === 'lainnya' && item.waktu_lainnya ? item.waktu_lainnya : config.label}</span>
-                          <Link href={`#`} className="text-primary-600 text-[9px] font-black uppercase tracking-widest flex items-center gap-1 hover:gap-1.5 transition-all">
+                          <Link href={`/jadwal/${item.tanggal}`} className="text-primary-600 text-[9px] font-black uppercase tracking-widest flex items-center gap-1 hover:gap-1.5 transition-all">
                             Detail <ArrowRight className="w-3 h-3" />
                           </Link>
                         </div>
