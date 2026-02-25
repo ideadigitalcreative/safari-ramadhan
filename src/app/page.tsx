@@ -41,12 +41,16 @@ const WAKTU_LABELS: Record<string, { label: string; icon: typeof Sunrise; color:
   lainnya: { label: 'Lainnya', icon: MoreVertical, color: 'text-slate-600', bgColor: 'bg-slate-50' },
 };
 
-const WAKTU_ORDER: Record<string, number> = {
-  subuh: 1,
-  dzuhur: 2,
-  ashar: 3,
-  isya: 4,
-  lainnya: 5
+const SHOLAT_TIME_SCORES: Record<string, string> = {
+  subuh: '05:00',
+  dzuhur: '12:00',
+  ashar: '15:30',
+  isya: '19:30',
+  lainnya: '23:59'
+};
+
+const getTimeScore = (item: JadwalSafari) => {
+  return item.jam || SHOLAT_TIME_SCORES[item.waktu_sholat] || '23:59';
 };
 
 export default function LandingPage() {
@@ -94,8 +98,8 @@ export default function LandingPage() {
     const key = item.tanggal;
     if (!acc[key]) acc[key] = [];
     acc[key].push(item);
-    // Sort items within each date based on WAKTU_ORDER
-    acc[key].sort((a, b) => (WAKTU_ORDER[a.waktu_sholat] || 99) - (WAKTU_ORDER[b.waktu_sholat] || 99));
+    // Sort items within each date based on time sequence
+    acc[key].sort((a, b) => getTimeScore(a).localeCompare(getTimeScore(b)));
     return acc;
   }, {} as Record<string, JadwalSafari[]>);
 
@@ -352,7 +356,10 @@ export default function LandingPage() {
                           </p>
                         )}
                         <div className="pt-3 border-t border-dark-50 flex items-center justify-between">
-                          <span className={`text-[10px] font-black uppercase tracking-widest ${config.color}`}>Waktu {item.waktu_sholat === 'lainnya' && item.waktu_lainnya ? item.waktu_lainnya : config.label}</span>
+                          <span className={`text-[10px] font-black uppercase tracking-widest ${config.color}`}>
+                            {item.jam && <span className="mr-1">[{item.jam}]</span>}
+                            Waktu {item.waktu_sholat === 'lainnya' && item.waktu_lainnya ? item.waktu_lainnya : config.label}
+                          </span>
                           <Link href={`/jadwal/${item.tanggal}`} className="text-primary-600 text-[9px] font-black uppercase tracking-widest flex items-center gap-1 hover:gap-1.5 transition-all">
                             Detail <ArrowRight className="w-3 h-3" />
                           </Link>

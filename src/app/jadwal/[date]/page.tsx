@@ -27,12 +27,16 @@ const WAKTU_LABELS: Record<string, { label: string; icon: typeof Sunrise; color:
     lainnya: { label: 'Lainnya', icon: MoreVertical, color: 'text-slate-600', bgColor: 'bg-slate-50' },
 };
 
-const WAKTU_ORDER: Record<string, number> = {
-    subuh: 1,
-    dzuhur: 2,
-    ashar: 3,
-    isya: 4,
-    lainnya: 5
+const SHOLAT_TIME_SCORES: Record<string, string> = {
+    subuh: '05:00',
+    dzuhur: '12:00',
+    ashar: '15:30',
+    isya: '19:30',
+    lainnya: '23:59'
+};
+
+const getTimeScore = (item: JadwalSafari) => {
+    return item.jam || SHOLAT_TIME_SCORES[item.waktu_sholat] || '23:59';
 };
 
 export default function JadwalDetailPage({ params }: { params: Promise<{ date: string }> }) {
@@ -59,7 +63,7 @@ export default function JadwalDetailPage({ params }: { params: Promise<{ date: s
             if (error) throw error;
 
             const sortedData = (data || []).sort((a: any, b: any) =>
-                (WAKTU_ORDER[a.waktu_sholat] || 99) - (WAKTU_ORDER[b.waktu_sholat] || 99)
+                getTimeScore(a).localeCompare(getTimeScore(b))
             );
 
             setJadwalList(sortedData);
@@ -137,6 +141,7 @@ export default function JadwalDetailPage({ params }: { params: Promise<{ date: s
                                                     <div>
                                                         <div className="flex items-center gap-2 mb-1">
                                                             <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${waktu.bgColor} ${waktu.color}`}>
+                                                                {item.jam && <span className="mr-1">[{item.jam}]</span>}
                                                                 {item.waktu_sholat === 'lainnya' && item.waktu_lainnya ? item.waktu_lainnya : waktu.label}
                                                             </span>
                                                             <span className={`badge text-[10px] ${getStatusColor(item.status)}`}>

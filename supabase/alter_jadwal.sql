@@ -7,6 +7,7 @@
 ALTER TABLE jadwal_safari ADD COLUMN IF NOT EXISTS ramadhan_ke INTEGER;
 ALTER TABLE jadwal_safari ADD COLUMN IF NOT EXISTS waktu_sholat VARCHAR(20);
 ALTER TABLE jadwal_safari ADD COLUMN IF NOT EXISTS waktu_lainnya TEXT;
+ALTER TABLE jadwal_safari ADD COLUMN IF NOT EXISTS jam VARCHAR(10);
 ALTER TABLE jadwal_safari ADD COLUMN IF NOT EXISTS no_pengurus VARCHAR(20);
 ALTER TABLE jadwal_safari ADD COLUMN IF NOT EXISTS keterangan TEXT;
 

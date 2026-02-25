@@ -50,12 +50,16 @@ const WAKTU_LABELS: Record<string, { label: string; icon: typeof Sunrise; color:
     lainnya: { label: 'Lainnya', icon: MoreVertical, color: 'text-slate-600', bgColor: 'bg-slate-50' },
 };
 
-const WAKTU_ORDER: Record<string, number> = {
-    subuh: 1,
-    dzuhur: 2,
-    ashar: 3,
-    isya: 4,
-    lainnya: 5
+const SHOLAT_TIME_SCORES: Record<string, string> = {
+    subuh: '05:00',
+    dzuhur: '12:00',
+    ashar: '15:30',
+    isya: '19:30',
+    lainnya: '23:59'
+};
+
+const getTimeScore = (item: JadwalSafari) => {
+    return item.jam || SHOLAT_TIME_SCORES[item.waktu_sholat] || '23:59';
 };
 
 export default function JadwalPage() {
@@ -78,6 +82,7 @@ export default function JadwalPage() {
         ramadhan_ke: '',
         waktu_sholat: 'subuh' as 'subuh' | 'dzuhur' | 'ashar' | 'isya' | 'lainnya',
         waktu_lainnya: '',
+        jam: '',
         nama_masjid: '',
         alamat: '',
         no_pengurus: '',
@@ -119,6 +124,7 @@ export default function JadwalPage() {
                 ramadhan_ke: Number(formData.ramadhan_ke),
                 waktu_sholat: formData.waktu_sholat,
                 waktu_lainnya: formData.waktu_sholat === 'lainnya' ? formData.waktu_lainnya : null,
+                jam: formData.jam || null,
                 nama_masjid: formData.nama_masjid,
                 alamat: formData.alamat || null,
                 no_pengurus: formData.no_pengurus || null,
@@ -173,6 +179,7 @@ export default function JadwalPage() {
             ramadhan_ke: String(item.ramadhan_ke),
             waktu_sholat: item.waktu_sholat,
             waktu_lainnya: item.waktu_lainnya || '',
+            jam: item.jam || '',
             nama_masjid: item.nama_masjid,
             alamat: item.alamat || '',
             no_pengurus: item.no_pengurus || '',
@@ -252,6 +259,7 @@ export default function JadwalPage() {
             ramadhan_ke: '',
             waktu_sholat: 'subuh',
             waktu_lainnya: '',
+            jam: '',
             nama_masjid: '',
             alamat: '',
             no_pengurus: '',
@@ -297,8 +305,8 @@ export default function JadwalPage() {
     const groupedJadwal = filteredList.reduce((acc, item) => {
         if (!acc[item.tanggal]) acc[item.tanggal] = [];
         acc[item.tanggal].push(item);
-        // Sort items within each date based on WAKTU_ORDER
-        acc[item.tanggal].sort((a, b) => (WAKTU_ORDER[a.waktu_sholat] || 99) - (WAKTU_ORDER[b.waktu_sholat] || 99));
+        // Sort items within each date based on time and sholat sequence
+        acc[item.tanggal].sort((a, b) => getTimeScore(a).localeCompare(getTimeScore(b)));
         return acc;
     }, {} as Record<string, JadwalSafari[]>);
 
@@ -494,6 +502,7 @@ export default function JadwalPage() {
                                                                 </div>
                                                                 <div>
                                                                     <span className={`text-[10px] font-black uppercase tracking-widest ${waktu.color}`}>
+                                                                        {item.jam && <span className="mr-1">[{item.jam}]</span>}
                                                                         {item.waktu_sholat === 'lainnya' && item.waktu_lainnya ? item.waktu_lainnya : waktu.label}
                                                                     </span>
                                                                     <h4 className="font-bold text-dark-900 leading-tight">{item.nama_masjid}</h4>
@@ -577,6 +586,19 @@ export default function JadwalPage() {
                                 className="form-input"
                             />
                         </div>
+                    </div>
+                    <div>
+                        <label className="form-label">Jam / Waktu (Opsional)</label>
+                        <div className="relative">
+                            <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-400" />
+                            <input
+                                type="time"
+                                value={formData.jam}
+                                onChange={(e) => setFormData({ ...formData, jam: e.target.value })}
+                                className="form-input pl-11"
+                            />
+                        </div>
+                        <p className="text-[10px] text-dark-500 mt-1 italic">* Digunakan untuk menentukan urutan jika ada beberapa agenda di hari yang sama.</p>
                     </div>
                     <div>
                         <label className="form-label">Waktu Sholat</label>

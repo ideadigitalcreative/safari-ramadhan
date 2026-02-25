@@ -16,6 +16,7 @@ export interface Database {
                     ramadhan_ke: number;
                     waktu_sholat: 'subuh' | 'dzuhur' | 'ashar' | 'isya' | 'lainnya';
                     waktu_lainnya: string | null;
+                    jam: string | null;
                     nama_masjid: string;
                     alamat: string | null;
                     no_pengurus: string | null;
@@ -30,6 +31,7 @@ export interface Database {
                     ramadhan_ke: number;
                     waktu_sholat: 'subuh' | 'dzuhur' | 'ashar' | 'isya' | 'lainnya';
                     waktu_lainnya?: string | null;
+                    jam?: string | null;
                     nama_masjid: string;
                     alamat?: string | null;
                     no_pengurus?: string | null;
@@ -44,6 +46,7 @@ export interface Database {
                     ramadhan_ke?: number;
                     waktu_sholat?: 'subuh' | 'dzuhur' | 'ashar' | 'isya' | 'lainnya';
                     waktu_lainnya?: string | null;
+                    jam?: string | null;
                     nama_masjid?: string;
                     alamat?: string | null;
                     no_pengurus?: string | null;

@@ -44,6 +44,7 @@ interface DashboardData {
         ramadhan_ke: number;
         waktu_sholat: string;
         waktu_lainnya: string | null;
+        jam: string | null;
         nama_masjid: string;
         status: string;
     }[];
@@ -70,6 +71,18 @@ interface DashboardData {
 }
 
 const CHART_COLORS = ['#7c3aed', '#f97316', '#3b82f6', '#10b981', '#f43f5e', '#06b6d4', '#ec4899'];
+
+const SHOLAT_TIME_SCORES: Record<string, string> = {
+    subuh: '05:00',
+    dzuhur: '12:00',
+    ashar: '15:30',
+    isya: '19:30',
+    lainnya: '23:59'
+};
+
+const getTimeScore = (item: any) => {
+    return item.jam || SHOLAT_TIME_SCORES[item.waktu_sholat] || '23:59';
+};
 
 export default function DashboardPage() {
     const [data, setData] = useState<DashboardData | null>(null);
@@ -151,7 +164,10 @@ export default function DashboardPage() {
                 totalDonasi,
                 totalKomitmenAktif,
                 jumlahDonatur: donaturCount || 0,
-                jadwalTerdekat: jadwalData || [],
+                jadwalTerdekat: (jadwalData || []).sort((a, b) => {
+                    if (a.tanggal !== b.tanggal) return a.tanggal.localeCompare(b.tanggal);
+                    return getTimeScore(a).localeCompare(getTimeScore(b));
+                }),
                 donasiPerMasjid,
                 recentDonasi,
                 donasiByMetode: [
@@ -393,7 +409,9 @@ export default function DashboardPage() {
                                                     <p className="font-bold text-dark-900 text-sm truncate">{jadwal.nama_masjid}</p>
                                                     <div className="flex items-center gap-2 mt-1">
                                                         <span className={`inline-flex items-center gap-1 text-[10px] font-bold ${wk.color}`}>
-                                                            <wk.Icon className="w-3 h-3" /> {jadwal.waktu_sholat === 'lainnya' && (jadwal as any).waktu_lainnya ? (jadwal as any).waktu_lainnya : wk.label}
+                                                            <wk.Icon className="w-3 h-3" />
+                                                            {jadwal.jam && <span className="mr-0.5">[{jadwal.jam}]</span>}
+                                                            {jadwal.waktu_sholat === 'lainnya' && (jadwal as any).waktu_lainnya ? (jadwal as any).waktu_lainnya : wk.label}
                                                         </span>
                                                         <span className="text-[10px] text-dark-400">•</span>
                                                         <span className="text-[10px] text-dark-500">Ke-{jadwal.ramadhan_ke}</span>
