@@ -267,23 +267,23 @@ export default function LandingPage() {
                 placeholder="Cari nama masjid atau alamat..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="form-input pl-12 h-14 bg-white shadow-xl shadow-dark-200/50 border-white"
+                className="form-input pl-10 md:pl-12 h-11 md:h-14 bg-white shadow-lg md:shadow-xl shadow-dark-200/50 border-white text-sm md:text-base"
               />
             </div>
             <div className="flex gap-2">
-              <div className="relative min-w-[160px]">
-                <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-400" />
+              <div className="relative w-11 md:w-auto md:min-w-[160px]">
+                <Filter className="absolute left-1/2 md:left-4 top-1/2 -translate-y-1/2 -translate-x-1/2 md:translate-x-0 w-4 h-4 text-dark-400 pointer-events-none" />
                 <select
                   value={filterWaktu}
                   onChange={(e) => setFilterWaktu(e.target.value)}
-                  className="form-select pl-11 h-14 bg-white shadow-xl shadow-dark-200/50 border-white font-bold"
+                  className="form-select pl-0 md:pl-11 h-11 md:h-14 bg-white shadow-lg md:shadow-xl shadow-dark-200/50 border-white font-bold text-transparent md:text-dark-900 bg-none md:bg-[image:url('data:image/svg+xml,%3Csvg_xmlns=%22http://www.w3.org/2000/svg%22_fill=%22none%22_viewBox=%220_0_24_24%22_stroke=%22%2364748b%22%3E%3Cpath_stroke-linecap=%22round%22_stroke-linejoin=%22round%22_stroke-width=%222%22_d=%22M19_9l-7_7-7-7%22%3E%3C/path%3E%3C/svg%3E')] bg-no-repeat bg-[position:right_12px_center] bg-[size:18px] cursor-pointer"
                 >
-                  <option value="semua">Semua Waktu</option>
-                  <option value="subuh">Subuh</option>
-                  <option value="dzuhur">Dzuhur</option>
-                  <option value="ashar">Ashar</option>
-                  <option value="isya">Isya</option>
-                  <option value="lainnya">Lainnya</option>
+                  <option value="semua" className="text-dark-900">Semua Waktu</option>
+                  <option value="subuh" className="text-dark-900">Subuh</option>
+                  <option value="dzuhur" className="text-dark-900">Dzuhur</option>
+                  <option value="ashar" className="text-dark-900">Ashar</option>
+                  <option value="isya" className="text-dark-900">Isya</option>
+                  <option value="lainnya" className="text-dark-900">Lainnya</option>
                 </select>
               </div>
             </div>
