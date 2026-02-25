@@ -334,17 +334,17 @@ export default function LandingPage() {
                     const config = WAKTU_LABELS[item.waktu_sholat] || WAKTU_LABELS.subuh;
                     const Icon = config.icon;
                     return (
-                      <div key={item.id} className="glass-card p-5 border-l-4 hover:shadow-xl hover:scale-[1.02]" style={{ borderLeftColor: `var(--${config.color.split('-')[1]}-500)` }}>
+                      <div key={item.id} className="glass-card p-4 md:p-5 border-l-4 hover:shadow-xl hover:scale-[1.02]" style={{ borderLeftColor: `var(--${config.color.split('-')[1]}-500)` }}>
                         <div className="flex items-start justify-between mb-4">
-                          <div className={`w-10 h-10 rounded-xl ${config.bgColor} flex items-center justify-center`}>
-                            <Icon className={`w-5 h-5 ${config.color}`} />
+                          <div className={`w-9 h-9 md:w-10 md:h-10 rounded-lg md:rounded-xl ${config.bgColor} flex items-center justify-center`}>
+                            <Icon className={`w-4 h-4 md:w-5 md:h-5 ${config.color}`} />
                           </div>
                           <span className={`badge py-0.5 px-2 text-[10px] ${getStatusColor(item.status)}`}>
                             {item.status === 'sudah_dilaksanakan' ? <CheckCircle2 className="w-3 h-3 mr-1" /> : <Clock className="w-3 h-3 mr-1" />}
                             {getStatusLabel(item.status)}
                           </span>
                         </div>
-                        <h4 className="text-lg font-bold text-dark-900 mb-2 leading-tight">{item.nama_masjid}</h4>
+                        <h4 className="text-base md:text-lg font-bold text-dark-900 mb-2 leading-tight">{item.nama_masjid}</h4>
                         {item.alamat && (
                           <p className="text-xs text-dark-500 flex items-start gap-1.5 mb-4 italic">
                             <MapPin className="w-3.5 h-3.5 mt-0.5 text-primary-500 shrink-0" />

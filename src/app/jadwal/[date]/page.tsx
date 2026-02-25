@@ -39,6 +39,15 @@ export default function JadwalDetailPage({ params }: { params: Promise<{ date: s
     const { date } = use(params);
     const [jadwalList, setJadwalList] = useState<JadwalSafari[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+    useEffect(() => {
+        const checkUser = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            setIsLoggedIn(!!user);
+        };
+        checkUser();
+    }, []);
 
     const fetchJadwal = useCallback(async () => {
         setLoading(true);
@@ -74,15 +83,15 @@ export default function JadwalDetailPage({ params }: { params: Promise<{ date: s
     };
 
     return (
-        <div className="min-h-screen flex">
-            <Sidebar />
-            <main className="flex-1 lg:ml-[280px] pt-16 lg:pt-0">
+        <div className="min-h-screen flex bg-dark-50">
+            {isLoggedIn && <Sidebar />}
+            <main className={`flex-1 pt-16 lg:pt-0 ${isLoggedIn ? 'lg:ml-[280px]' : ''}`}>
                 <div className="p-4 md:p-6 lg:p-8 max-w-4xl mx-auto">
                     {/* Header */}
                     <div className="mb-8">
-                        <Link href="/jadwal" className="inline-flex items-center gap-2 text-dark-500 hover:text-primary-600 font-semibold text-sm transition-colors mb-4 group">
+                        <Link href={isLoggedIn ? "/jadwal" : "/"} className="inline-flex items-center gap-2 text-dark-500 hover:text-primary-600 font-semibold text-sm transition-colors mb-4 group">
                             <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
-                            Kembali ke Jadwal
+                            {isLoggedIn ? 'Kembali ke Jadwal' : 'Kembali ke Beranda'}
                         </Link>
                         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                             <div>
@@ -119,11 +128,11 @@ export default function JadwalDetailPage({ params }: { params: Promise<{ date: s
                                 const WaktuIcon = waktu.icon;
                                 return (
                                     <div key={item.id} className="glass-card-static overflow-hidden hover:shadow-lg transition-all border-l-4" style={{ borderLeftColor: `var(--${waktu.color.split('-')[1]}-500)` }}>
-                                        <div className="p-6">
+                                        <div className="p-4 md:p-6">
                                             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                                                 <div className="flex items-start gap-4">
-                                                    <div className={`w-14 h-14 rounded-2xl ${waktu.bgColor} flex items-center justify-center flex-shrink-0 shadow-inner`}>
-                                                        <WaktuIcon className={`w-7 h-7 ${waktu.color}`} />
+                                                    <div className={`w-11 h-11 md:w-14 md:h-14 rounded-xl md:rounded-2xl ${waktu.bgColor} flex items-center justify-center flex-shrink-0 shadow-inner`}>
+                                                        <WaktuIcon className={`w-5 h-5 md:w-7 md:h-7 ${waktu.color}`} />
                                                     </div>
                                                     <div>
                                                         <div className="flex items-center gap-2 mb-1">
@@ -134,7 +143,7 @@ export default function JadwalDetailPage({ params }: { params: Promise<{ date: s
                                                                 {getStatusLabel(item.status)}
                                                             </span>
                                                         </div>
-                                                        <h3 className="text-xl font-bold text-dark-900 mb-1">{item.nama_masjid}</h3>
+                                                        <h3 className="text-lg md:text-xl font-bold text-dark-900 mb-1">{item.nama_masjid}</h3>
                                                         {item.alamat && (
                                                             <p className="text-sm text-dark-500 flex items-center gap-1.5">
                                                                 <MapPin className="w-4 h-4 text-primary-500" /> {item.alamat}
