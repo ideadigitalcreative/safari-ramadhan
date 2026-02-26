@@ -22,6 +22,8 @@ import {
     TrendingUp,
     Upload,
     Eye,
+    MapPin,
+    User,
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 
@@ -79,8 +81,27 @@ export default function KomitmenPage() {
             const { data: jadwalData } = await supabase
                 .from('jadwal_safari')
                 .select('*')
-                .order('tanggal', { ascending: false });
-            setJadwalList(jadwalData || []);
+                .order('tanggal', { ascending: true });
+                        // Sort jadwalList by date and then time score
+            const SHOLAT_TIME_SCORES: Record<string, string> = {
+                subuh: '05:00',
+                dzuhur: '12:00',
+                ashar: '15:30',
+                isya: '19:30',
+                lainnya: '23:59'
+            };
+
+            const getTimeScore = (item: any) => {
+                return item.jam || SHOLAT_TIME_SCORES[item.waktu_sholat] || '23:59';
+            };
+
+            const sortedJadwal = (jadwalData || []).sort((a: any, b: any) => {
+                if (a.tanggal !== b.tanggal) {
+                    return a.tanggal.localeCompare(b.tanggal);
+                }
+                return getTimeScore(a).localeCompare(getTimeScore(b));
+            });
+            setJadwalList(sortedJadwal);
         } catch (error) {
             console.error('Error fetching data:', error);
         } finally {
@@ -238,6 +259,8 @@ export default function KomitmenPage() {
         try {
             const nominal = parseFloat(paymentData.nominal);
             if (isNaN(nominal) || nominal <= 0) throw new Error('Nominal tidak valid');
+
+            if (!paymentData.jadwal_safari_id) throw new Error('Pilih lokasi safari terlebih dahulu');
 
             // 1. Record the donation
             const { error: dError } = await (supabase.from('donasi') as any).insert({
@@ -444,9 +467,8 @@ export default function KomitmenPage() {
                                                 onClick={() => {
                                                     setPaymentItem(item);
                                                     setShowPaymentModal(true);
-                                                    if (jadwalList.length > 0 && !paymentData.jadwal_safari_id) {
-                                                        setPaymentData(prev => ({ ...prev, jadwal_safari_id: jadwalList[0].id }));
-                                                    }
+                                                    const masjidId = item.donatur?.jadwal_safari_id || (jadwalList.length > 0 ? jadwalList[0].id : '');
+                                                    setPaymentData(prev => ({ ...prev, jadwal_safari_id: masjidId }));
                                                 }}
                                                 className="flex-[2] py-2 rounded-xl bg-primary-600 text-white text-xs font-bold hover:bg-primary-700 transition-colors flex items-center justify-center gap-1.5 shadow-sm shadow-primary-200"
                                             >
@@ -570,14 +592,37 @@ export default function KomitmenPage() {
                     </div>
                 </form>
             </Modal>
+
             {/* Payment Modal */}
             <Modal
                 isOpen={showPaymentModal}
                 onClose={() => { setShowPaymentModal(false); setPaymentItem(null); }}
-                title={`Tambah Donasi: ${paymentItem?.donatur?.nama}`}
+                title="Tambah Pembayaran Cicilan"
             >
                 <form onSubmit={handlePay} className="space-y-4">
-                    <div className="p-4 rounded-2xl bg-primary-50 border border-primary-100 mb-2">
+                    {/* Static Summary Info */}
+                    <div className="p-4 rounded-2xl bg-primary-50 border border-primary-100 mb-4">
+                        <div className="flex items-start gap-3 mb-4">
+                            <div className="w-10 h-10 rounded-xl bg-white border border-primary-100 flex items-center justify-center shrink-0">
+                                <User className="w-5 h-5 text-primary-600" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <p className="text-[10px] text-primary-600 font-bold uppercase tracking-wider mb-0.5">Donatur</p>
+                                <p className="text-sm font-bold text-dark-900 truncate">{paymentItem?.donatur?.nama || '-'}</p>
+                            </div>
+                            {paymentItem?.donatur?.jadwal_safari_id && (
+                                <div className="text-right">
+                                    <p className="text-[10px] text-primary-600 font-bold uppercase tracking-wider mb-0.5">Lokasi Safari</p>
+                                    <div className="flex items-center justify-end gap-1 text-sm font-bold text-dark-900">
+                                        <MapPin className="w-3.5 h-3.5 text-primary-500" />
+                                        <span>{jadwalList.find(j => j.id === paymentItem.donatur?.jadwal_safari_id)?.nama_masjid || '-'}</span>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="h-px bg-primary-100/50 mb-4" />
+
                         <div className="flex justify-between items-center text-xs text-primary-600 font-bold uppercase tracking-wider mb-2">
                             <span>Sisa Komitmen</span>
                             <span>Total</span>
@@ -635,7 +680,7 @@ export default function KomitmenPage() {
                     {paymentData.metode_pembayaran === 'transfer' && (
                         <div>
                             <label className="form-label text-xs">Upload Bukti Transfer</label>
-                            <div className="border border-dashed border-dark-200 rounded-xl p-3 text-center hover:border-primary-300 transition-colors bg-white">
+                            <div className="border border-dashed border-dark-200 rounded-xl p-4 text-center hover:border-primary-300 transition-colors bg-white">
                                 {paymentData.bukti_transfer ? (
                                     <div className="flex flex-col items-center">
                                         <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center mb-1">
@@ -651,38 +696,41 @@ export default function KomitmenPage() {
                                         </button>
                                     </div>
                                 ) : (
-                                    <>
-                                        <Upload className="w-5 h-5 text-dark-400 mx-auto mb-1" />
-                                        <p className="text-[9px] text-dark-500 mb-2">Pilih gambar bukti transfer</p>
+                                    <div className="relative">
+                                        <Upload className="w-6 h-6 text-dark-400 mx-auto mb-2" />
+                                        <p className="text-[10px] text-dark-500 mb-2">Pilih gambar bukti transfer</p>
                                         <input
                                             type="file"
                                             accept="image/*"
                                             onChange={handleFileUpload}
-                                            className="w-full text-[9px] text-dark-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[9px] file:font-bold file:bg-primary-50 file:text-primary-600 cursor-pointer"
+                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                                         />
-                                    </>
+                                        <button type="button" className="text-[10px] font-bold text-primary-600 bg-primary-50 px-3 py-1.5 rounded-lg">Pilih File</button>
+                                    </div>
                                 )}
                             </div>
                         </div>
                     )}
 
-                    <div>
-                        <label className="form-label">Pilih Lokasi Safari (Masjid)</label>
-                        <select
-                            required
-                            value={paymentData.jadwal_safari_id}
-                            onChange={(e) => setPaymentData({ ...paymentData, jadwal_safari_id: e.target.value })}
-                            className="form-select"
-                        >
-                            <option value="">-- Pilih Lokasi --</option>
-                            {jadwalList.map((j) => (
-                                <option key={j.id} value={j.id}>
-                                    {j.nama_masjid} ({new Date(j.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })})
-                                </option>
-                            ))}
-                        </select>
-                        <p className="text-[10px] text-dark-400 mt-1">Donasi harus dikaitkan dengan jadwal safari untuk keperluan laporan.</p>
-                    </div>
+                    {!paymentItem?.donatur?.jadwal_safari_id && (
+                        <div>
+                            <label className="form-label">Lokasi Safari (Masjid)</label>
+                            <select
+                                required
+                                value={paymentData.jadwal_safari_id}
+                                onChange={(e) => setPaymentData({ ...paymentData, jadwal_safari_id: e.target.value })}
+                                className="form-select"
+                            >
+                                <option value="">-- Pilih Lokasi --</option>
+                                {jadwalList.map((j) => (
+                                    <option key={j.id} value={j.id}>
+                                        {j.nama_masjid} — {j.jam ? `[${j.jam}] ` : ''}{(j as any).waktu_sholat?.charAt(0).toUpperCase() + (j as any).waktu_sholat?.slice(1)} ({formatShortDate(j.tanggal)})
+                                    </option>
+                                ))}
+                            </select>
+                            <p className="text-[10px] text-dark-400 mt-1">Donasi harus dikaitkan dengan masjid untuk laporan safari.</p>
+                        </div>
+                    )}
 
                     <div className="flex gap-3 pt-4">
                         <button type="submit" className="btn-primary flex-1 justify-center">
@@ -694,6 +742,7 @@ export default function KomitmenPage() {
                     </div>
                 </form>
             </Modal>
+
             {/* Image Preview */}
             {previewImage && (
                 <div
@@ -701,8 +750,8 @@ export default function KomitmenPage() {
                     onClick={() => setPreviewImage(null)}
                 >
                     <div className="max-w-lg w-full">
-                        <img src={previewImage} alt="Bukti Transfer" className="w-full rounded-2xl" />
-                        <p className="text-center text-dark-400 text-sm mt-4">Klik di mana saja untuk menutup</p>
+                        <img src={previewImage} alt="Bukti Transfer" className="w-full rounded-2xl shadow-2xl" />
+                        <p className="text-center text-white/70 text-sm mt-4 font-medium">Klik di mana saja untuk menutup</p>
                     </div>
                 </div>
             )}

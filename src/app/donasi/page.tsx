@@ -71,7 +71,7 @@ export default function DonasiPage() {
             const { data: jadwalData } = await supabase
                 .from('jadwal_safari')
                 .select('*')
-                .order('tanggal', { ascending: false });
+                .order('tanggal', { ascending: true });
 
             // Map relations
             const donaturMap = new Map((donaturData as Donatur[] | null)?.map((d) => [d.id, d]) || []);
@@ -85,7 +85,28 @@ export default function DonasiPage() {
 
             setDonasiList(donasiWithRelations);
             setDonaturList(donaturData || []);
-            setJadwalList(jadwalData || []);
+
+            // Sort jadwalList by date and then time score
+            const SHOLAT_TIME_SCORES: Record<string, string> = {
+                subuh: '05:00',
+                dzuhur: '12:00',
+                ashar: '15:30',
+                isya: '19:30',
+                lainnya: '23:59'
+            };
+
+            const getTimeScore = (item: JadwalSafari) => {
+                return item.jam || SHOLAT_TIME_SCORES[item.waktu_sholat] || '23:59';
+            };
+
+            const sortedJadwal = (jadwalData as JadwalSafari[] || []).sort((a, b) => {
+                if (a.tanggal !== b.tanggal) {
+                    return a.tanggal.localeCompare(b.tanggal);
+                }
+                return getTimeScore(a).localeCompare(getTimeScore(b));
+            });
+
+            setJadwalList(sortedJadwal);
         } catch (error) {
             console.error('Error fetching data:', error);
         } finally {
@@ -707,7 +728,7 @@ export default function DonasiPage() {
                             <option value="">Pilih Masjid</option>
                             {jadwalList.map((j) => (
                                 <option key={j.id} value={j.id}>
-                                    {j.nama_masjid} — {(j as any).waktu_sholat?.charAt(0).toUpperCase() + (j as any).waktu_sholat?.slice(1)} ({formatShortDate(j.tanggal)})
+                                    {j.nama_masjid} — {j.jam ? `[${j.jam}] ` : ''}{(j as any).waktu_sholat?.charAt(0).toUpperCase() + (j as any).waktu_sholat?.slice(1)} ({formatShortDate(j.tanggal)})
                                 </option>
                             ))}
                         </select>
