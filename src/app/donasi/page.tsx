@@ -22,6 +22,7 @@ import {
     Handshake,
     UserCheck,
     Phone,
+    Pencil,
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 
@@ -34,6 +35,7 @@ export default function DonasiPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [filterMetode, setFilterMetode] = useState('semua');
     const [previewImage, setPreviewImage] = useState<string | null>(null);
+    const [editingId, setEditingId] = useState<string | null>(null);
 
     const [formData, setFormData] = useState({
         tanggal: new Date().toISOString().split('T')[0],
@@ -129,12 +131,20 @@ export default function DonasiPage() {
                     .maybeSingle();
 
                 setActiveKomitmen(data);
-                if (data) {
+                if (data && !editingId) { // Only auto-fill if not editing an existing donation (to avoid overwriting)
                     const k = data as any;
                     setFormData(prev => ({
                         ...prev,
                         total_komitmen: k.total_komitmen.toString(),
                         target_pelunasan: k.target_pelunasan
+                    }));
+                } else if (data && editingId) {
+                    // If editing, we still want to show the current commitment progress
+                    const k = data as any;
+                    setFormData(prev => ({
+                        ...prev,
+                        total_komitmen: prev.total_komitmen || k.total_komitmen.toString(),
+                        target_pelunasan: prev.target_pelunasan || k.target_pelunasan
                     }));
                 }
             } else {
@@ -142,7 +152,7 @@ export default function DonasiPage() {
             }
         };
         fetchActiveKomitmen();
-    }, [formData.donatur_id, formData.jenis_donatur]);
+    }, [formData.donatur_id, formData.jenis_donatur, editingId]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -216,18 +226,31 @@ export default function DonasiPage() {
                 }
             }
 
-            // 2. Insert into donasi table ONLY if nominal > 0
+            // 2. Insert or Update donasi table ONLY if nominal > 0
             if (nominal > 0) {
-                const { error } = await (supabase.from('donasi') as any).insert({
-                    tanggal: formData.tanggal,
-                    donatur_id: donaturId,
-                    nominal: nominal,
-                    metode_pembayaran: formData.metode_pembayaran,
-                    jadwal_safari_id: formData.jadwal_safari_id,
-                    bukti_transfer: formData.bukti_transfer || null,
-                    keterangan: formData.keterangan || null,
-                });
-                if (error) throw error;
+                if (editingId) {
+                    const { error } = await (supabase.from('donasi') as any).update({
+                        tanggal: formData.tanggal,
+                        donatur_id: donaturId,
+                        nominal: nominal,
+                        metode_pembayaran: formData.metode_pembayaran,
+                        jadwal_safari_id: formData.jadwal_safari_id,
+                        bukti_transfer: formData.bukti_transfer || null,
+                        keterangan: formData.keterangan || null,
+                    }).eq('id', editingId);
+                    if (error) throw error;
+                } else {
+                    const { error } = await (supabase.from('donasi') as any).insert({
+                        tanggal: formData.tanggal,
+                        donatur_id: donaturId,
+                        nominal: nominal,
+                        metode_pembayaran: formData.metode_pembayaran,
+                        jadwal_safari_id: formData.jadwal_safari_id,
+                        bukti_transfer: formData.bukti_transfer || null,
+                        keterangan: formData.keterangan || null,
+                    });
+                    if (error) throw error;
+                }
             }
 
             Swal.fire({
@@ -248,6 +271,25 @@ export default function DonasiPage() {
                 text: 'Gagal menyimpan donasi: ' + error.message,
             });
         }
+    };
+
+    const handleEdit = (item: DonasiWithRelations) => {
+        setEditingId(item.id);
+        setFormData({
+            tanggal: item.tanggal,
+            donatur_id: item.donatur_id,
+            nama_donatur: item.donatur?.nama || '',
+            no_hp_donatur: item.donatur?.no_hp || '',
+            jenis_donatur: item.donatur?.jenis_donatur || 'sekali',
+            total_komitmen: '',
+            target_pelunasan: '',
+            nominal: item.nominal.toString(),
+            metode_pembayaran: item.metode_pembayaran,
+            jadwal_safari_id: item.jadwal_safari_id,
+            bukti_transfer: item.bukti_transfer || '',
+            keterangan: item.keterangan || '',
+        });
+        setShowModal(true);
     };
 
     const handleDelete = async (id: string) => {
@@ -329,6 +371,7 @@ export default function DonasiPage() {
     };
 
     const resetForm = () => {
+        setEditingId(null);
         setFormData({
             tanggal: new Date().toISOString().split('T')[0],
             donatur_id: '',
@@ -504,7 +547,13 @@ export default function DonasiPage() {
                                                         )}
                                                     </td>
                                                     <td className="py-4 px-6">
-                                                        <div className="flex items-center justify-end">
+                                                        <div className="flex items-center justify-end gap-2">
+                                                            <button
+                                                                onClick={() => handleEdit(item)}
+                                                                className="w-8 h-8 rounded-lg bg-primary-500/10 flex items-center justify-center text-primary-600 hover:bg-primary-500/20 transition-colors"
+                                                            >
+                                                                <Pencil className="w-3.5 h-3.5" />
+                                                            </button>
                                                             <button
                                                                 onClick={() => handleDelete(item.id)}
                                                                 className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center text-red-400 hover:bg-red-500/20 transition-colors"
@@ -543,12 +592,20 @@ export default function DonasiPage() {
                                                     {item.metode_pembayaran === 'cash' ? 'Cash' : 'Transfer'}
                                                 </span>
                                             </div>
-                                            <button
-                                                onClick={() => handleDelete(item.id)}
-                                                className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center text-red-400"
-                                            >
-                                                <Trash2 className="w-3.5 h-3.5" />
-                                            </button>
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    onClick={() => handleEdit(item)}
+                                                    className="w-8 h-8 rounded-lg bg-primary-500/10 flex items-center justify-center text-primary-600"
+                                                >
+                                                    <Pencil className="w-3.5 h-3.5" />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDelete(item.id)}
+                                                    className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center text-red-400"
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 ))}
@@ -558,8 +615,8 @@ export default function DonasiPage() {
                 </div>
             </main>
 
-            {/* Add Modal */}
-            <Modal isOpen={showModal} onClose={() => { setShowModal(false); resetForm(); }} title="Catat Donasi Baru" size="lg">
+            {/* Add/Edit Modal */}
+            <Modal isOpen={showModal} onClose={() => { setShowModal(false); resetForm(); }} title={editingId ? "Edit Donasi" : "Catat Donasi Baru"} size="lg">
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
                         <label className="form-label">Tanggal</label>
@@ -762,17 +819,57 @@ export default function DonasiPage() {
                     </div>
                     {formData.metode_pembayaran === 'transfer' && (
                         <div>
-                            <label className="form-label">Upload Bukti Transfer (Opsional)</label>
-                            <div className="border-2 border-dashed border-dark-100 rounded-xl p-6 text-center hover:border-primary-200 transition-colors">
-                                <Upload className="w-8 h-8 text-dark-400 mx-auto mb-2" />
-                                <p className="text-sm text-dark-500 mb-2">Klik atau drag file ke sini</p>
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={handleFileUpload}
-                                    className="w-full text-sm text-dark-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-600 hover:file:bg-primary-100"
-                                />
-                            </div>
+                            <label className="form-label">Bukti Transfer (Opsional)</label>
+                            {formData.bukti_transfer ? (
+                                <div className="space-y-3">
+                                    <div className="relative group rounded-xl overflow-hidden border border-dark-200">
+                                        <img
+                                            src={formData.bukti_transfer}
+                                            alt="Preview"
+                                            className="w-full h-40 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                            onClick={() => setPreviewImage(formData.bukti_transfer)}
+                                        />
+                                        <div className="absolute inset-0 bg-dark-900/40 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition-opacity">
+                                            <button
+                                                type="button"
+                                                onClick={() => setPreviewImage(formData.bukti_transfer)}
+                                                className="p-2 rounded-lg bg-white/20 backdrop-blur-md text-white hover:bg-white/30"
+                                            >
+                                                <Eye className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setFormData({ ...formData, bukti_transfer: '' })}
+                                                className="p-2 rounded-lg bg-red-500/80 backdrop-blur-md text-white hover:bg-red-500"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <div className="flex-1 h-px bg-dark-100"></div>
+                                        <span className="text-[10px] font-bold text-dark-400 uppercase">Atau Ganti Gambar</span>
+                                        <div className="flex-1 h-px bg-dark-100"></div>
+                                    </div>
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleFileUpload}
+                                        className="w-full text-sm text-dark-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-600 hover:file:bg-primary-100"
+                                    />
+                                </div>
+                            ) : (
+                                <div className="border-2 border-dashed border-dark-100 rounded-xl p-6 text-center hover:border-primary-200 transition-colors relative">
+                                    <Upload className="w-8 h-8 text-dark-400 mx-auto mb-2" />
+                                    <p className="text-sm text-dark-500 mb-2">Klik untuk upload bukti</p>
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleFileUpload}
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                    />
+                                </div>
+                            )}
                         </div>
                     )}
                     <div>
