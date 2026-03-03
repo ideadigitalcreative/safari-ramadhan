@@ -396,7 +396,7 @@ export default function DonasiPage() {
             item.jadwal_safari?.nama_masjid.toLowerCase().includes(query);
         const matchMetode = filterMetode === 'semua' || item.metode_pembayaran === filterMetode;
         return matchSearch && matchMetode;
-    });
+    }).sort((a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime());
 
     const totalFiltered = filteredList.reduce((sum, d) => sum + Number(d.nominal), 0);
 
