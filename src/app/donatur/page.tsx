@@ -275,7 +275,7 @@ export default function DonaturPage() {
                 },
             ],
         };
-        await generateKuitansiPdf(kuitansiData, `kuitansi-${donatur.nama.replace(/\s+/g, '-')}-${donasi.tanggal}.pdf`, '/logo.png');
+        await generateKuitansiPdf(kuitansiData, `kuitansi-${donatur.nama.replace(/\s+/g, '-')}-${donasi.tanggal}.pdf`, '/logo.png', '/merdeka.png');
     };
 
     const resetForm = () => {

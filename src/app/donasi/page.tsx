@@ -599,7 +599,7 @@ export default function DonasiPage() {
                                                                                 jenisTransaksi: 'Zakat / Infaq / Shodaqoh',
                                                                             }],
                                                                         };
-                                                                        await generateKuitansiPdf(k, `kuitansi-${item.donatur!.nama.replace(/\s+/g, '-')}-${item.tanggal}.pdf`, '/logo.png');
+                                                                        await generateKuitansiPdf(k, `kuitansi-${item.donatur!.nama.replace(/\s+/g, '-')}-${item.tanggal}.pdf`, '/logo.png', '/merdeka.png');
                                                                     }}
                                                                     className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-600 hover:bg-emerald-500/20 transition-colors"
                                                                     title="Cetak Kuitansi"
@@ -667,7 +667,7 @@ export default function DonasiPage() {
                                                                     jenisTransaksi: 'Zakat / Infaq / Shodaqoh',
                                                                 }],
                                                             };
-                                                            await generateKuitansiPdf(k, `kuitansi-${item.donatur!.nama.replace(/\s+/g, '-')}-${item.tanggal}.pdf`, '/logo.png');
+                                                            await generateKuitansiPdf(k, `kuitansi-${item.donatur!.nama.replace(/\s+/g, '-')}-${item.tanggal}.pdf`, '/logo.png', '/merdeka.png');
                                                         }}
                                                         className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-600"
                                                         title="Cetak Kuitansi"

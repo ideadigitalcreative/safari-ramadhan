@@ -53,6 +53,13 @@ function formatRupiah(n: number): string {
     return 'Rp.' + new Intl.NumberFormat('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
 }
 
+/** Nama program yang ditampilkan di kuitansi (pemetaan nama lama -> nama resmi) */
+function programDisplayName(program: string): string {
+    const v = program?.trim() || '';
+    if (v === 'An-Naafi Bappeda Muh. Yamin') return 'Bantuan Kemanusiaan Palestina';
+    return v || 'Donasi';
+}
+
 function formatDateId(dateStr: string): string {
     const d = new Date(dateStr);
     return d.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
@@ -92,14 +99,21 @@ export function generateNomorTransaksi(tanggal: string, donasiId: string): strin
 const A4_WIDTH_MM = 210;
 const MARGIN = 14;
 
+const LOGO_LEFT_WIDTH = 28;
+const LOGO_LEFT_HEIGHT = 14;
+const LOGO_RIGHT_WIDTH = 28;
+const LOGO_RIGHT_HEIGHT = 14;
+
 /**
  * Generate dan download PDF kuitansi untuk donatur.
  * @param logoUrl - URL logo (mis. '/logo.png') untuk ditampilkan di header kiri.
+ * @param logoUrlRight - URL logo (mis. '/merdeka.png') untuk ditampilkan di header kanan (Merdeka Waqaf).
  */
 export async function generateKuitansiPdf(
     data: KuitansiData,
     filename?: string,
-    logoUrl?: string
+    logoUrl?: string,
+    logoUrlRight?: string
 ): Promise<void> {
     const doc = new jsPDF();
     const pageW = A4_WIDTH_MM;
@@ -107,6 +121,7 @@ export async function generateKuitansiPdf(
 
     // ---- Header: logo kiri ----
     let logoBase64: string | null = null;
+    let logoRightBase64: string | null = null;
     if (logoUrl) {
         try {
             logoBase64 = await fetchImageAsBase64(logoUrl);
@@ -114,16 +129,27 @@ export async function generateKuitansiPdf(
             // ignore
         }
     }
-    if (logoBase64) {
-        doc.addImage(logoBase64, 'PNG', MARGIN, y, 28, 14);
+    if (logoUrlRight) {
+        try {
+            logoRightBase64 = await fetchImageAsBase64(logoUrlRight);
+        } catch {
+            // ignore
+        }
     }
-    // Logo kanan: Merdeka Waqaf (teks saja, warna hijau)
-    doc.setTextColor(0, 128, 0);
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Merdeka', pageW - MARGIN - 22, y + 5);
-    doc.text('Waqaf', pageW - MARGIN - 22, y + 10);
-    doc.setTextColor(...COLORS.black);
+    if (logoBase64) {
+        doc.addImage(logoBase64, 'PNG', MARGIN, y, LOGO_LEFT_WIDTH, LOGO_LEFT_HEIGHT);
+    }
+    // Logo kanan: Merdeka Waqaf (gambar atau fallback teks)
+    if (logoRightBase64) {
+        doc.addImage(logoRightBase64, 'PNG', pageW - MARGIN - LOGO_RIGHT_WIDTH, y, LOGO_RIGHT_WIDTH, LOGO_RIGHT_HEIGHT);
+    } else {
+        doc.setTextColor(0, 128, 0);
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Merdeka', pageW - MARGIN - 22, y + 5);
+        doc.text('Waqaf', pageW - MARGIN - 22, y + 10);
+        doc.setTextColor(...COLORS.black);
+    }
 
     // ---- Header: judul tengah ----
     y += 18;
@@ -192,7 +218,7 @@ export async function generateKuitansiPdf(
     // ---- Tabel: header abu (Jenis Transaksi | Program | Sub Total) + body ----
     const tableData = data.items.map((item) => [
         item.jenisTransaksi,
-        item.program,
+        programDisplayName(item.program),
         formatRupiah(item.nominal),
     ]);
 
