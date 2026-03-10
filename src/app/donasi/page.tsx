@@ -1,13 +1,40 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 import Sidebar from '@/components/Sidebar';
 import Modal from '@/components/Modal';
 import EmptyState from '@/components/EmptyState';
 import LoadingSkeleton from '@/components/LoadingSkeleton';
 import { supabase } from '@/lib/supabase';
 import { formatCurrency, formatShortDate, calculateProgress, getKomitmenStatus, formatNumber, formatInputNumber } from '@/lib/utils';
-import { Donatur, JadwalSafari, DonasiWithRelations } from '@/types/database';
+import {
+    Donatur,
+    JadwalSafari,
+    DonasiWithRelations,
+    Donasi,
+    Komitmen,
+    type DonaturUpdate,
+    type DonaturInsert,
+    type KomitmenInsert,
+    type KomitmenUpdate,
+    type DonasiUpdate,
+    type DonasiInsert,
+} from '@/types/database';
+
+// Supabase createBrowserClient doesn't infer table payloads; use typed builders for update/insert
+type DonaturTable = {
+    update: (v: DonaturUpdate) => { eq: (col: string, val: string) => Promise<{ error: unknown }> };
+    insert: (v: DonaturInsert) => { select: () => { single: () => Promise<{ data: Donatur | null; error: unknown }> } };
+};
+type KomitmenTable = {
+    update: (v: KomitmenUpdate) => { eq: (col: string, val: string) => Promise<{ error: unknown }> };
+    insert: (v: KomitmenInsert) => Promise<{ error: unknown }>;
+};
+type DonasiTable = {
+    update: (v: DonasiUpdate) => { eq: (col: string, val: string) => Promise<{ error: unknown }> };
+    insert: (v: DonasiInsert) => Promise<{ error: unknown }>;
+};
 import {
     Heart,
     Plus,
@@ -23,8 +50,15 @@ import {
     UserCheck,
     Phone,
     Pencil,
+    FileText,
 } from 'lucide-react';
 import Swal from 'sweetalert2';
+import {
+    generateKuitansiPdf,
+    generateNomorDonatur,
+    generateNomorTransaksi,
+    type KuitansiData,
+} from '@/lib/kuitansiPdf';
 
 export default function DonasiPage() {
     const [donasiList, setDonasiList] = useState<DonasiWithRelations[]>([]);
@@ -52,7 +86,7 @@ export default function DonasiPage() {
         keterangan: '',
     });
 
-    const [activeKomitmen, setActiveKomitmen] = useState<any | null>(null);
+    const [activeKomitmen, setActiveKomitmen] = useState<Komitmen | null>(null);
 
     const fetchData = useCallback(async () => {
         setLoading(true);
@@ -79,7 +113,7 @@ export default function DonasiPage() {
             const donaturMap = new Map((donaturData as Donatur[] | null)?.map((d) => [d.id, d]) || []);
             const jadwalMap = new Map((jadwalData as JadwalSafari[] | null)?.map((j) => [j.id, j]) || []);
 
-            const donasiWithRelations: DonasiWithRelations[] = (donasiData as any[] || []).map((d: any) => ({
+            const donasiWithRelations: DonasiWithRelations[] = ((donasiData as Donasi[] | null) || []).map((d: Donasi) => ({
                 ...d,
                 donatur: donaturMap.get(d.donatur_id),
                 jadwal_safari: jadwalMap.get(d.jadwal_safari_id),
@@ -130,9 +164,9 @@ export default function DonasiPage() {
                     .neq('status', 'lunas')
                     .maybeSingle();
 
-                setActiveKomitmen(data);
+                setActiveKomitmen(data as Komitmen | null);
                 if (data && !editingId) { // Only auto-fill if not editing an existing donation (to avoid overwriting)
-                    const k = data as any;
+                    const k = data as Komitmen;
                     setFormData(prev => ({
                         ...prev,
                         total_komitmen: k.total_komitmen.toString(),
@@ -140,7 +174,7 @@ export default function DonasiPage() {
                     }));
                 } else if (data && editingId) {
                     // If editing, we still want to show the current commitment progress
-                    const k = data as any;
+                    const k = data as Komitmen;
                     setFormData(prev => ({
                         ...prev,
                         total_komitmen: prev.total_komitmen || k.total_komitmen.toString(),
@@ -168,14 +202,14 @@ export default function DonasiPage() {
                     donaturId = existing.id;
                     // Update existing donatur if info changed
                     if (existing.no_hp !== formData.no_hp_donatur || existing.jenis_donatur !== formData.jenis_donatur) {
-                        await (supabase.from('donatur') as any).update({
+                        await (supabase.from('donatur') as unknown as DonaturTable).update({
                             no_hp: formData.no_hp_donatur,
                             jenis_donatur: formData.jenis_donatur
                         }).eq('id', existing.id);
                     }
                 } else {
                     // Create new donatur
-                    const { data: newDonatur, error: dError } = await (supabase.from('donatur') as any)
+                    const { data: newDonatur, error: dError } = await (supabase.from('donatur') as unknown as DonaturTable)
                         .insert({
                             nama: formData.nama_donatur,
                             no_hp: formData.no_hp_donatur,
@@ -186,7 +220,7 @@ export default function DonasiPage() {
                         .single();
 
                     if (dError) throw dError;
-                    donaturId = newDonatur.id;
+                    donaturId = newDonatur?.id ?? '';
                 }
             }
 
@@ -203,7 +237,7 @@ export default function DonasiPage() {
                     const newTotalPaid = Number(activeKomitmen.total_terbayar) + nominal;
                     const newStatus = newTotalPaid >= Number(activeKomitmen.total_komitmen) ? 'lunas' : 'aktif';
 
-                    const { error: kError } = await (supabase.from('komitmen') as any)
+                    const { error: kError } = await (supabase.from('komitmen') as unknown as KomitmenTable)
                         .update({
                             total_terbayar: newTotalPaid,
                             status: newStatus,
@@ -214,7 +248,7 @@ export default function DonasiPage() {
                 } else if (totalKomitmen > 0) {
                     // Create new
                     const newStatus = nominal >= totalKomitmen ? 'lunas' : 'aktif';
-                    const { error: kError } = await (supabase.from('komitmen') as any)
+                    const { error: kError } = await (supabase.from('komitmen') as unknown as KomitmenTable)
                         .insert({
                             donatur_id: donaturId,
                             total_komitmen: totalKomitmen,
@@ -229,7 +263,7 @@ export default function DonasiPage() {
             // 2. Insert or Update donasi table ONLY if nominal > 0
             if (nominal > 0) {
                 if (editingId) {
-                    const { error } = await (supabase.from('donasi') as any).update({
+                    const { error } = await (supabase.from('donasi') as unknown as DonasiTable).update({
                         tanggal: formData.tanggal,
                         donatur_id: donaturId,
                         nominal: nominal,
@@ -240,7 +274,7 @@ export default function DonasiPage() {
                     }).eq('id', editingId);
                     if (error) throw error;
                 } else {
-                    const { error } = await (supabase.from('donasi') as any).insert({
+                    const { error } = await (supabase.from('donasi') as unknown as DonasiTable).insert({
                         tanggal: formData.tanggal,
                         donatur_id: donaturId,
                         nominal: nominal,
@@ -263,12 +297,13 @@ export default function DonasiPage() {
             setShowModal(false);
             resetForm();
             fetchData();
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Error saving donasi:', error);
+            const message = error instanceof Error ? error.message : 'Terjadi kesalahan';
             Swal.fire({
                 icon: 'error',
                 title: 'Gagal!',
-                text: 'Gagal menyimpan donasi: ' + error.message,
+                text: 'Gagal menyimpan donasi: ' + message,
             });
         }
     };
@@ -317,12 +352,13 @@ export default function DonasiPage() {
                     showConfirmButton: false
                 });
                 fetchData();
-            } catch (error: any) {
+            } catch (error: unknown) {
                 console.error('Error deleting donasi:', error);
+                const message = error instanceof Error ? error.message : 'Gagal menghapus donasi.';
                 Swal.fire({
                     icon: 'error',
                     title: 'Gagal!',
-                    text: 'Gagal menghapus donasi.',
+                    text: message,
                 });
             }
         }
@@ -548,6 +584,29 @@ export default function DonasiPage() {
                                                     </td>
                                                     <td className="py-4 px-6">
                                                         <div className="flex items-center justify-end gap-2">
+                                                            {item.donatur && (
+                                                                <button
+                                                                    onClick={() => {
+                                                                        const k: KuitansiData = {
+                                                                            namaDonatur: item.donatur!.nama,
+                                                                            alamatDonatur: item.donatur!.alamat || '',
+                                                                            nomorDonatur: generateNomorDonatur(item.donatur!.id, item.donatur!.created_at),
+                                                                            nomorTransaksi: generateNomorTransaksi(item.tanggal, item.id),
+                                                                            tanggalTransaksi: item.tanggal,
+                                                                            items: [{
+                                                                                nominal: Number(item.nominal),
+                                                                                program: item.keterangan || item.jadwal_safari?.nama_masjid || 'Donasi',
+                                                                                jenisTransaksi: 'Zakat / Infaq / Shodaqoh',
+                                                                            }],
+                                                                        };
+                                                                        generateKuitansiPdf(k, `kuitansi-${item.donatur!.nama.replace(/\s+/g, '-')}-${item.tanggal}.pdf`);
+                                                                    }}
+                                                                    className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-600 hover:bg-emerald-500/20 transition-colors"
+                                                                    title="Cetak Kuitansi"
+                                                                >
+                                                                    <FileText className="w-3.5 h-3.5" />
+                                                                </button>
+                                                            )}
                                                             <button
                                                                 onClick={() => handleEdit(item)}
                                                                 className="w-8 h-8 rounded-lg bg-primary-500/10 flex items-center justify-center text-primary-600 hover:bg-primary-500/20 transition-colors"
@@ -593,6 +652,29 @@ export default function DonasiPage() {
                                                 </span>
                                             </div>
                                             <div className="flex items-center gap-2">
+                                                {item.donatur && (
+                                                    <button
+                                                        onClick={() => {
+                                                            const k: KuitansiData = {
+                                                                namaDonatur: item.donatur!.nama,
+                                                                alamatDonatur: item.donatur!.alamat || '',
+                                                                nomorDonatur: generateNomorDonatur(item.donatur!.id, item.donatur!.created_at),
+                                                                nomorTransaksi: generateNomorTransaksi(item.tanggal, item.id),
+                                                                tanggalTransaksi: item.tanggal,
+                                                                items: [{
+                                                                    nominal: Number(item.nominal),
+                                                                    program: item.keterangan || item.jadwal_safari?.nama_masjid || 'Donasi',
+                                                                    jenisTransaksi: 'Zakat / Infaq / Shodaqoh',
+                                                                }],
+                                                            };
+                                                            generateKuitansiPdf(k, `kuitansi-${item.donatur!.nama.replace(/\s+/g, '-')}-${item.tanggal}.pdf`);
+                                                        }}
+                                                        className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-600"
+                                                        title="Cetak Kuitansi"
+                                                    >
+                                                        <FileText className="w-3.5 h-3.5" />
+                                                    </button>
+                                                )}
                                                 <button
                                                     onClick={() => handleEdit(item)}
                                                     className="w-8 h-8 rounded-lg bg-primary-500/10 flex items-center justify-center text-primary-600"
@@ -660,7 +742,7 @@ export default function DonasiPage() {
                                         nama_donatur: val,
                                         donatur_id: found ? found.id : '',
                                         no_hp_donatur: found ? found.no_hp : formData.no_hp_donatur,
-                                        jenis_donatur: found ? found.jenis_donatur : formData.jenis_donatur as any
+                                        jenis_donatur: (found ? found.jenis_donatur : formData.jenis_donatur) as 'sekali' | 'komitmen'
                                     });
                                 }}
                                 className="form-input"
@@ -698,7 +780,7 @@ export default function DonasiPage() {
                         <label className="form-label">Jenis Donasi</label>
                         <select
                             value={formData.jenis_donatur}
-                            onChange={(e) => setFormData({ ...formData, jenis_donatur: e.target.value as any })}
+                            onChange={(e) => setFormData({ ...formData, jenis_donatur: (e.target.value as 'sekali' | 'komitmen') })}
                             className="form-select"
                         >
                             <option value="sekali">Sekali Donasi</option>
@@ -785,7 +867,7 @@ export default function DonasiPage() {
                             <option value="">Pilih Masjid</option>
                             {jadwalList.map((j) => (
                                 <option key={j.id} value={j.id}>
-                                    {j.nama_masjid} — {j.jam ? `[${j.jam}] ` : ''}{(j as any).waktu_sholat?.charAt(0).toUpperCase() + (j as any).waktu_sholat?.slice(1)} ({formatShortDate(j.tanggal)})
+                                    {j.nama_masjid} — {j.jam ? `[${j.jam}] ` : ''}{j.waktu_sholat ? j.waktu_sholat.charAt(0).toUpperCase() + j.waktu_sholat.slice(1) : ''} ({formatShortDate(j.tanggal)})
                                 </option>
                             ))}
                         </select>
@@ -823,11 +905,14 @@ export default function DonasiPage() {
                             {formData.bukti_transfer ? (
                                 <div className="space-y-3">
                                     <div className="relative group rounded-xl overflow-hidden border border-dark-200">
-                                        <img
+                                        <Image
                                             src={formData.bukti_transfer}
-                                            alt="Preview"
+                                            alt="Preview bukti transfer"
+                                            width={400}
+                                            height={160}
                                             className="w-full h-40 object-cover cursor-pointer hover:opacity-90 transition-opacity"
                                             onClick={() => setPreviewImage(formData.bukti_transfer)}
+                                            unoptimized
                                         />
                                         <div className="absolute inset-0 bg-dark-900/40 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition-opacity">
                                             <button
@@ -898,8 +983,14 @@ export default function DonasiPage() {
                     className="fixed inset-0 bg-dark-900/80 backdrop-blur-md z-[100] flex items-center justify-center p-4"
                     onClick={() => setPreviewImage(null)}
                 >
-                    <div className="max-w-lg w-full">
-                        <img src={previewImage} alt="Bukti Transfer" className="w-full rounded-2xl" />
+                    <div className="max-w-lg w-full relative aspect-video">
+                        <Image
+                            src={previewImage}
+                            alt="Bukti Transfer"
+                            fill
+                            className="object-contain rounded-2xl"
+                            unoptimized
+                        />
                         <p className="text-center text-dark-400 text-sm mt-4">Klik di mana saja untuk menutup</p>
                     </div>
                 </div>

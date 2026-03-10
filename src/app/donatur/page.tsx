@@ -21,8 +21,15 @@ import {
     Heart,
     Handshake,
     UserCheck,
+    FileText,
 } from 'lucide-react';
 import Swal from 'sweetalert2';
+import {
+    generateKuitansiPdf,
+    generateNomorDonatur,
+    generateNomorTransaksi,
+    type KuitansiData,
+} from '@/lib/kuitansiPdf';
 
 interface DonaturWithHistory extends Donatur {
     total_donasi: number;
@@ -236,6 +243,26 @@ export default function DonaturPage() {
     const handleViewDetail = (donaturId: string) => {
         setDetailDonatur(donaturId);
         fetchDonaturDetail(donaturId);
+    };
+
+    const handleCetakKuitansi = (donasi: (typeof donaturDonasi)[0]) => {
+        const donatur = selectedDonatur;
+        if (!donatur) return;
+        const kuitansiData: KuitansiData = {
+            namaDonatur: donatur.nama,
+            alamatDonatur: donatur.alamat || '',
+            nomorDonatur: generateNomorDonatur(donatur.id, donatur.created_at),
+            nomorTransaksi: generateNomorTransaksi(donasi.tanggal, donasi.id),
+            tanggalTransaksi: donasi.tanggal,
+            items: [
+                {
+                    nominal: Number(donasi.nominal),
+                    program: donasi.keterangan || donasi.jadwal_safari?.nama_masjid || 'Donasi',
+                    jenisTransaksi: 'Zakat / Infaq / Shodaqoh',
+                },
+            ],
+        };
+        generateKuitansiPdf(kuitansiData, `kuitansi-${donatur.nama.replace(/\s+/g, '-')}-${donasi.tanggal}.pdf`);
     };
 
     const resetForm = () => {
@@ -561,6 +588,14 @@ export default function DonaturPage() {
                                     <p className="text-xs text-dark-500">{formatShortDate(d.tanggal)} • {d.metode_pembayaran === 'cash' ? 'Cash' : 'Transfer'}</p>
                                 </div>
                                 <p className="text-sm font-bold text-primary-600">{formatCurrency(Number(d.nominal))}</p>
+                                <button
+                                    type="button"
+                                    onClick={() => handleCetakKuitansi(d)}
+                                    className="shrink-0 px-3 py-2 rounded-xl bg-emerald-50 text-emerald-600 text-xs font-semibold hover:bg-emerald-100 transition-colors flex items-center gap-1.5"
+                                    title="Cetak Kuitansi"
+                                >
+                                    <FileText className="w-3.5 h-3.5" /> Kuitansi
+                                </button>
                             </div>
                         ))}
                         <div className="border-t border-dark-100 pt-3 mt-4">
