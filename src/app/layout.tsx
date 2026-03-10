@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import KeepAliveTrigger from "@/components/KeepAliveTrigger";
+import UrlParamsCheck from "@/components/UrlParamsCheck";
 
 export const metadata: Metadata = {
   title: "Safari Ramadhan - Manajemen Donasi",
@@ -23,6 +25,8 @@ export default function RootLayout({
         />
       </head>
       <body>
+        <UrlParamsCheck />
+        <KeepAliveTrigger />
         {children}
       </body>
     </html>

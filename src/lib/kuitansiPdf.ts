@@ -101,8 +101,8 @@ const MARGIN = 14;
 
 const LOGO_LEFT_WIDTH = 28;
 const LOGO_LEFT_HEIGHT = 14;
-const LOGO_RIGHT_WIDTH = 28;
-const LOGO_RIGHT_HEIGHT = 14;
+// Logo kanan proporsional (aspect ratio 1:1 agar tidak gepeng)
+const LOGO_RIGHT_SIZE = 14;
 
 /**
  * Generate dan download PDF kuitansi untuk donatur.
@@ -139,9 +139,9 @@ export async function generateKuitansiPdf(
     if (logoBase64) {
         doc.addImage(logoBase64, 'PNG', MARGIN, y, LOGO_LEFT_WIDTH, LOGO_LEFT_HEIGHT);
     }
-    // Logo kanan: Merdeka Waqaf (gambar atau fallback teks)
+    // Logo kanan: Merdeka Waqaf (gambar proporsional 1:1 atau fallback teks)
     if (logoRightBase64) {
-        doc.addImage(logoRightBase64, 'PNG', pageW - MARGIN - LOGO_RIGHT_WIDTH, y, LOGO_RIGHT_WIDTH, LOGO_RIGHT_HEIGHT);
+        doc.addImage(logoRightBase64, 'PNG', pageW - MARGIN - LOGO_RIGHT_SIZE, y, LOGO_RIGHT_SIZE, LOGO_RIGHT_SIZE);
     } else {
         doc.setTextColor(0, 128, 0);
         doc.setFontSize(10);
@@ -178,15 +178,16 @@ export async function generateKuitansiPdf(
     doc.text(`Kepada Bapak/Ibu ${data.namaDonatur}`, MARGIN + 4, y + 6.5);
     y += boxH + 6;
 
-    // ---- Paragraf intro (Satu Hati Merdeka bold) ----
+    // ---- Paragraf intro: 2 baris, "Satu Hati Merdeka" bold ----
     doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
     doc.text('Kuitansi ini adalah bukti pembayaran Zakat, Infaq dan Shodaqoh Anda di ', MARGIN, y);
     const boldStart = doc.getTextWidth('Kuitansi ini adalah bukti pembayaran Zakat, Infaq dan Shodaqoh Anda di ');
     doc.setFont('helvetica', 'bold');
-    doc.text('Satu Hati Merdeka', MARGIN + boldStart, y);
+    doc.text('Satu Hati Merdeka.', MARGIN + boldStart, y);
+    y += 5;
     doc.setFont('helvetica', 'normal');
-    const boldW = doc.getTextWidth('Satu Hati Merdeka');
-    doc.text(', Berikut kami sertakan detail pembayaran Anda:', MARGIN + boldStart + boldW, y);
+    doc.text('Berikut kami sertakan detail pembayaran Anda.', MARGIN, y);
     y += 8;
 
     // ---- Kotak abu: dua kolom (Nomor/Nama/NPWP | Nomor Transaksi/Tanggal/Alamat NPWP) ----
@@ -234,12 +235,12 @@ export async function generateKuitansiPdf(
             fontSize: 9,
         },
         columnStyles: {
-            0: { cellWidth: 50, halign: 'left' },
-            1: { cellWidth: 87, halign: 'center' },
-            2: { cellWidth: 45, halign: 'right' },
+            0: { cellWidth: 50, halign: 'left', valign: 'middle' },
+            1: { cellWidth: 87, halign: 'center', valign: 'middle' },
+            2: { cellWidth: 45, halign: 'right', valign: 'middle' },
         },
         margin: { left: MARGIN, right: MARGIN },
-        styles: { fontSize: 9 },
+        styles: { fontSize: 9, cellPadding: 3 },
     });
 
     y = ((doc as JsPDFWithAutoTable).lastAutoTable?.finalY ?? y) + 4;
