@@ -1,6 +1,9 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+/** jsPDF instance with lastAutoTable (set by jspdf-autotable after autoTable()) */
+type JsPDFWithAutoTable = jsPDF & { lastAutoTable?: { finalY: number } };
+
 const ORG = {
     nama: 'Yayasan Satu Hati Merdeka',
     noSk: 'No. 209/BAZNAS-MRS/SK/IV/2021',
@@ -69,9 +72,12 @@ export function generateNomorTransaksi(tanggal: string, donasiId: string): strin
 /**
  * Generate dan download PDF kuitansi untuk donatur
  */
+// A4 width in mm (jsPDF default)
+const A4_WIDTH_MM = 210;
+
 export function generateKuitansiPdf(data: KuitansiData, filename?: string): void {
     const doc = new jsPDF();
-    const pageW = doc.getPageWidth();
+    const pageW = A4_WIDTH_MM;
     let y = 18;
 
     // ---- Header ----
@@ -136,7 +142,7 @@ export function generateKuitansiPdf(data: KuitansiData, filename?: string): void
         margin: { left: 14, right: 14 },
     });
 
-    y = (doc as any).lastAutoTable.finalY + 8;
+    y = ((doc as JsPDFWithAutoTable).lastAutoTable?.finalY ?? y) + 8;
 
     // Total Transaksi
     const total = data.items.reduce((s, i) => s + i.nominal, 0);
