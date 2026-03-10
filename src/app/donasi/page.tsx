@@ -586,7 +586,7 @@ export default function DonasiPage() {
                                                         <div className="flex items-center justify-end gap-2">
                                                             {item.donatur && (
                                                                 <button
-                                                                    onClick={() => {
+                                                                    onClick={async () => {
                                                                         const k: KuitansiData = {
                                                                             namaDonatur: item.donatur!.nama,
                                                                             alamatDonatur: item.donatur!.alamat || '',
@@ -599,7 +599,7 @@ export default function DonasiPage() {
                                                                                 jenisTransaksi: 'Zakat / Infaq / Shodaqoh',
                                                                             }],
                                                                         };
-                                                                        generateKuitansiPdf(k, `kuitansi-${item.donatur!.nama.replace(/\s+/g, '-')}-${item.tanggal}.pdf`);
+                                                                        await generateKuitansiPdf(k, `kuitansi-${item.donatur!.nama.replace(/\s+/g, '-')}-${item.tanggal}.pdf`, '/logo.png');
                                                                     }}
                                                                     className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-600 hover:bg-emerald-500/20 transition-colors"
                                                                     title="Cetak Kuitansi"
@@ -654,7 +654,7 @@ export default function DonasiPage() {
                                             <div className="flex items-center gap-2">
                                                 {item.donatur && (
                                                     <button
-                                                        onClick={() => {
+                                                        onClick={async () => {
                                                             const k: KuitansiData = {
                                                                 namaDonatur: item.donatur!.nama,
                                                                 alamatDonatur: item.donatur!.alamat || '',
@@ -667,7 +667,7 @@ export default function DonasiPage() {
                                                                     jenisTransaksi: 'Zakat / Infaq / Shodaqoh',
                                                                 }],
                                                             };
-                                                            generateKuitansiPdf(k, `kuitansi-${item.donatur!.nama.replace(/\s+/g, '-')}-${item.tanggal}.pdf`);
+                                                            await generateKuitansiPdf(k, `kuitansi-${item.donatur!.nama.replace(/\s+/g, '-')}-${item.tanggal}.pdf`, '/logo.png');
                                                         }}
                                                         className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-600"
                                                         title="Cetak Kuitansi"

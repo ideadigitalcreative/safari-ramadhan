@@ -15,11 +15,20 @@ const ORG = {
     namaPenerima: 'Ahmad Riyadhi Sultan, S.Sos',
 };
 
-const LEGAL_TEXT =
-    'Satu Hati Merdeka terdaftar sebagai lembaga penerbit Bukti Setor Zakat (BSZ) untuk pengurangan penghasilan kena pajak berdasarkan Peraturan Dirjen Pajak No.PER-22/PJ/2025. ' +
-    'Satu Hati Merdeka tidak menerima segala bentuk dana yang terkait dengan terorisme dan pencucian uang. ' +
-    'Untuk memenuhi kepatuhan terhadap Syariah serta Undang-Undang No. 23 Tahun 2011 tentang Pengelolaan Zakat, data zakat yang disetorkan oleh Penyetor (Muzaki) telah sesuai dengan kriteria/syarat wajib zakat. ' +
-    'Transaksi zakat dapat dikreditkan sebagai pengurangan Penghasilan Bruto sesuai ketentuan PMK No.114 Tahun 2025 dan Pasal 9 ayat (1) huruf g UU No.7 Tahun 2021 tentang Harmonisasi Peraturan Perpajakan (UU HPP).';
+// Warna sesuai referensi
+const COLORS = {
+    greyBg: [224, 224, 224] as [number, number, number],   // #E0E0E0
+    redBar: [216, 39, 47] as [number, number, number],     // #D8272F
+    black: [0, 0, 0] as [number, number, number],
+    white: [255, 255, 255] as [number, number, number],
+};
+
+const LEGAL_POINTS = [
+    'Satu Hati Merdeka terdaftar sebagai lembaga penerbit Bukti Setor Zakat (BSZ) untuk pengurangan penghasilan kena pajak berdasarkan Peraturan Dirjen Pajak No.PER-22/PJ/2025.',
+    'Satu Hati Merdeka tidak menerima segala bentuk dana yang terkait dengan terorisme dan pencucian uang.',
+    'Untuk memenuhi kepatuhan terhadap Syariah serta Undang-Undang No. 23 Tahun 2011 tentang Pengelolaan Zakat, data zakat yang disetorkan oleh Penyetor (Muzaki) telah sesuai dengan kriteria/syarat wajib zakat.',
+    'Transaksi zakat dapat dikreditkan sebagai pengurangan Penghasilan Bruto sesuai ketentuan PMK No.114 Tahun 2025 dan Pasal 9 ayat (1) huruf g UU No.7 Tahun 2021 tentang Harmonisasi Peraturan Perpajakan (UU HPP).',
+];
 
 const DOA_TEXT =
     'Semoga Allah memberikan pahala atas apa yang telah Bapak/Ibu {nama} tunaikan, semoga Allah memberikan keberkahan atas harta yang masih tertinggal dan semoga zakat, infaq dan shodaqoh ini menjadi pembersih bagi jiwa dan harta Bapak/Ibu {nama} beserta keluarga.';
@@ -49,6 +58,17 @@ function formatDateId(dateStr: string): string {
     return d.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
 }
 
+async function fetchImageAsBase64(url: string): Promise<string> {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
+}
+
 /**
  * Generate nomor donatur (contoh: 202609030115) dari id + tanggal
  */
@@ -69,134 +89,187 @@ export function generateNomorTransaksi(tanggal: string, donasiId: string): strin
     return `${ymd}${short}`;
 }
 
-/**
- * Generate dan download PDF kuitansi untuk donatur
- */
-// A4 width in mm (jsPDF default)
 const A4_WIDTH_MM = 210;
+const MARGIN = 14;
 
-export function generateKuitansiPdf(data: KuitansiData, filename?: string): void {
+/**
+ * Generate dan download PDF kuitansi untuk donatur.
+ * @param logoUrl - URL logo (mis. '/logo.png') untuk ditampilkan di header kiri.
+ */
+export async function generateKuitansiPdf(
+    data: KuitansiData,
+    filename?: string,
+    logoUrl?: string
+): Promise<void> {
     const doc = new jsPDF();
     const pageW = A4_WIDTH_MM;
-    let y = 18;
+    let y = 12;
 
-    // ---- Header ----
-    doc.setFontSize(18);
+    // ---- Header: logo kiri ----
+    let logoBase64: string | null = null;
+    if (logoUrl) {
+        try {
+            logoBase64 = await fetchImageAsBase64(logoUrl);
+        } catch {
+            // ignore
+        }
+    }
+    if (logoBase64) {
+        doc.addImage(logoBase64, 'PNG', MARGIN, y, 28, 14);
+    }
+    // Logo kanan: Merdeka Waqaf (teks saja, warna hijau)
+    doc.setTextColor(0, 128, 0);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Merdeka', pageW - MARGIN - 22, y + 5);
+    doc.text('Waqaf', pageW - MARGIN - 22, y + 10);
+    doc.setTextColor(...COLORS.black);
+
+    // ---- Header: judul tengah ----
+    y += 18;
+    doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
     doc.text('KUITANSI', pageW / 2, y, { align: 'center' });
-    y += 10;
-
-    doc.setFontSize(11);
+    y += 7;
+    doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     doc.text(ORG.nama, pageW / 2, y, { align: 'center' });
     y += 5;
-    doc.setFontSize(9);
-    doc.setTextColor(80, 80, 80);
+    doc.setFontSize(8);
     doc.text(ORG.noSk, pageW / 2, y, { align: 'center' });
-    y += 6;
-    doc.text(`${ORG.alamat}`, pageW / 2, y, { align: 'center' });
     y += 5;
+    doc.text(ORG.alamat, pageW / 2, y, { align: 'center' });
+    y += 4;
     doc.text(`Telp : ${ORG.telp}  web : ${ORG.web}`, pageW / 2, y, { align: 'center' });
-    y += 8;
-    doc.setTextColor(0, 0, 0);
-
-    // Kepada Bapak/Ibu
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
-    doc.text(`Kepada Bapak/Ibu ${data.namaDonatur}`, 14, y);
-    y += 8;
-
-    // Keterangan intro
-    doc.setFontSize(9);
-    doc.setTextColor(60, 60, 60);
-    doc.text(
-        'Kuitansi ini adalah bukti pembayaran Zakat, Infaq dan Shodaqoh Anda di Satu Hati Merdeka. Berikut kami sertakan detail pembayaran Anda:',
-        14,
-        y,
-        { maxWidth: pageW - 28 }
-    );
     y += 10;
-    doc.setTextColor(0, 0, 0);
 
-    // Tabel detail transaksi
-    const tableData = data.items.map((item, i) => [
-        (i + 1).toString(),
-        formatRupiah(item.nominal),
-        item.program,
+    // ---- Kotak abu: Kepada Bapak/Ibu ----
+    const boxH = 10;
+    doc.setFillColor(...COLORS.greyBg);
+    doc.rect(MARGIN, y, pageW - 2 * MARGIN, boxH, 'F');
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Kepada Bapak/Ibu ${data.namaDonatur}`, MARGIN + 4, y + 6.5);
+    y += boxH + 6;
+
+    // ---- Paragraf intro (Satu Hati Merdeka bold) ----
+    doc.setFontSize(9);
+    doc.text('Kuitansi ini adalah bukti pembayaran Zakat, Infaq dan Shodaqoh Anda di ', MARGIN, y);
+    const boldStart = doc.getTextWidth('Kuitansi ini adalah bukti pembayaran Zakat, Infaq dan Shodaqoh Anda di ');
+    doc.setFont('helvetica', 'bold');
+    doc.text('Satu Hati Merdeka', MARGIN + boldStart, y);
+    doc.setFont('helvetica', 'normal');
+    const boldW = doc.getTextWidth('Satu Hati Merdeka');
+    doc.text(', Berikut kami sertakan detail pembayaran Anda:', MARGIN + boldStart + boldW, y);
+    y += 8;
+
+    // ---- Kotak abu: dua kolom (Nomor/Nama/NPWP | Nomor Transaksi/Tanggal/Alamat NPWP) ----
+    const detailBoxH = 22;
+    doc.setFillColor(...COLORS.greyBg);
+    doc.rect(MARGIN, y, pageW - 2 * MARGIN, detailBoxH, 'F');
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    const col1X = MARGIN + 4;
+    const col2X = MARGIN + (pageW - 2 * MARGIN) / 2 + 4;
+    doc.text(`Nomor Donatur    : ${data.nomorDonatur}`, col1X, y + 5);
+    doc.text(`Nama Donatur     : ${data.namaDonatur}`, col1X, y + 10);
+    doc.text(`NPWP             : ${data.npwp ?? '--'}`, col1X, y + 15);
+    doc.text(`Nomor Transaksi  : ${data.nomorTransaksi}`, col2X, y + 5);
+    doc.text(`Tanggal Transaksi: ${formatDateId(data.tanggalTransaksi)}`, col2X, y + 10);
+    doc.text(`Alamat NPWP      : ${data.alamatDonatur || '--'}`, col2X, y + 15);
+    y += detailBoxH + 6;
+
+    // ---- Tabel: bar merah "Detail Transaksi" ----
+    doc.setFillColor(...COLORS.redBar);
+    doc.rect(MARGIN, y, pageW - 2 * MARGIN, 8, 'F');
+    doc.setTextColor(...COLORS.white);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('Detail Transaksi', MARGIN + 4, y + 5.5);
+    doc.setTextColor(...COLORS.black);
+    y += 8;
+
+    // ---- Tabel: header abu (Jenis Transaksi | Program | Sub Total) + body ----
+    const tableData = data.items.map((item) => [
         item.jenisTransaksi,
+        item.program,
+        formatRupiah(item.nominal),
     ]);
 
     autoTable(doc, {
         startY: y,
-        head: [['No.', 'Sub Total', 'Program', 'Jenis Transaksi']],
+        head: [['Jenis Transaksi', 'Program', 'Sub Total']],
         body: tableData,
-        theme: 'grid',
-        headStyles: { fillColor: [124, 58, 237], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
-        styles: { fontSize: 9 },
-        columnStyles: {
-            0: { cellWidth: 12, halign: 'center' },
-            1: { cellWidth: 38, halign: 'right' },
-            2: { cellWidth: 70 },
-            3: { cellWidth: 55 },
+        theme: 'plain',
+        headStyles: {
+            fillColor: COLORS.greyBg,
+            textColor: COLORS.black,
+            fontStyle: 'normal',
+            fontSize: 9,
         },
-        margin: { left: 14, right: 14 },
+        columnStyles: {
+            0: { cellWidth: 50, halign: 'left' },
+            1: { cellWidth: 87, halign: 'center' },
+            2: { cellWidth: 45, halign: 'right' },
+        },
+        margin: { left: MARGIN, right: MARGIN },
+        styles: { fontSize: 9 },
     });
 
-    y = ((doc as JsPDFWithAutoTable).lastAutoTable?.finalY ?? y) + 8;
+    y = ((doc as JsPDFWithAutoTable).lastAutoTable?.finalY ?? y) + 4;
 
-    // Total Transaksi
+    // ---- Total Transaksi (kanan, nominal bold) ----
     const total = data.items.reduce((s, i) => s + i.nominal, 0);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.text('Total Transaksi', 14, y);
-    doc.text(formatRupiah(total), pageW - 14, y, { align: 'right' });
-    y += 10;
-
-    // Detail Transaksi (box)
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.text('Detail Transaksi', 14, y);
-    y += 6;
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
-    const detailLines = [
-        `Nama Donatur     : ${data.namaDonatur}`,
-        `Nomor Donatur    : ${data.nomorDonatur}`,
-        `Nomor Transaksi  : ${data.nomorTransaksi}`,
-        `Tanggal Transaksi: ${data.tanggalTransaksi}`,
-        `NPWP             : ${data.npwp || '-'}`,
-        `Alamat           : ${data.alamatDonatur || '-'}`,
-    ];
-    detailLines.forEach((line) => {
-        doc.text(line, 14, y);
+    doc.text('Total Transaksi ', pageW - MARGIN - 55, y);
+    doc.setFont('helvetica', 'bold');
+    doc.text(formatRupiah(total), pageW - MARGIN, y, { align: 'right' });
+    y += 12;
+
+    // ---- Doa (paragraf tengah) ----
+    const doa = DOA_TEXT.replace(/\{nama\}/g, data.namaDonatur);
+    const splitDoa = doc.splitTextToSize(doa, pageW - 2 * MARGIN);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    splitDoa.forEach((line: string) => {
+        doc.text(line, pageW / 2, y, { align: 'center' });
         y += 5;
     });
-    y += 6;
-
-    // Legal text (small, wrapped)
-    doc.setFontSize(7);
-    doc.setTextColor(70, 70, 70);
-    const splitLegal = doc.splitTextToSize(LEGAL_TEXT, pageW - 28);
-    doc.text(splitLegal, 14, y);
-    y += splitLegal.length * 4 + 4;
-
-    // Doa
-    const doa = DOA_TEXT.replace(/\{nama\}/g, data.namaDonatur);
-    const splitDoa = doc.splitTextToSize(doa, pageW - 28);
-    doc.text(splitDoa, 14, y);
-    y += splitDoa.length * 4 + 10;
-    doc.setTextColor(0, 0, 0);
-
-    // Footer: Diterima oleh
-    doc.setFontSize(9);
-    doc.text(`Diterima oleh ${ORG.penerima}`, 14, y);
-    y += 5;
-    doc.text(ORG.jabatan, 14, y);
-    y += 8;
-    doc.text(formatDateId(data.tanggalTransaksi), 14, y);
     y += 10;
+
+    // ---- Blok tanda tangan ----
+    doc.setFontSize(9);
+    doc.text(`Diterima oleh ${ORG.penerima}`, MARGIN, y);
+    y += 5;
+    doc.text(formatDateId(data.tanggalTransaksi), MARGIN, y);
+    y += 10;
+    // Placeholder garis tanda tangan (optional: bisa pakai image signature)
+    doc.setDrawColor(0, 0, 0);
+    doc.line(MARGIN, y, MARGIN + 40, y);
+    y += 8;
     doc.setFont('helvetica', 'bold');
-    doc.text(ORG.namaPenerima, 14, y);
+    doc.text(ORG.namaPenerima, MARGIN, y);
+    y += 5;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.text(ORG.jabatan, MARGIN, y);
+    y += 14;
+
+    // ---- Footer: Keterangan (4 poin) ----
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.text('Keterangan:', MARGIN, y);
+    y += 5;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    LEGAL_POINTS.forEach((point, i) => {
+        const lines = doc.splitTextToSize(`${i + 1}. ${point}`, pageW - 2 * MARGIN - 6);
+        lines.forEach((line: string) => {
+            doc.text(line, MARGIN + 4, y);
+            y += 3.5;
+        });
+    });
 
     doc.save(filename || `kuitansi-${data.nomorTransaksi}.pdf`);
 }

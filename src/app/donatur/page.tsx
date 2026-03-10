@@ -7,7 +7,18 @@ import EmptyState from '@/components/EmptyState';
 import LoadingSkeleton from '@/components/LoadingSkeleton';
 import { supabase } from '@/lib/supabase';
 import { formatCurrency, formatShortDate, formatNumber } from '@/lib/utils';
-import { Donatur, Donasi, JadwalSafari } from '@/types/database';
+import {
+    Donatur,
+    Donasi,
+    JadwalSafari,
+    type DonaturUpdate,
+    type DonaturInsert,
+} from '@/types/database';
+
+type DonaturTable = {
+    update: (v: DonaturUpdate) => { eq: (col: string, val: string) => Promise<{ error: unknown }> };
+    insert: (v: DonaturInsert) => Promise<{ error: unknown }>;
+};
 import {
     Users,
     Plus,
@@ -64,16 +75,16 @@ export default function DonaturPage() {
             const { data: donaturData } = await supabase
                 .from('donatur')
                 .select('*')
-                .order('nama') as { data: any[] | null };
+                .order('nama') as { data: Donatur[] | null };
 
             const { data: donasiData } = await supabase
                 .from('donasi')
                 .select('donatur_id, nominal, jadwal_safari_id, tanggal')
-                .order('tanggal', { ascending: false }) as { data: any[] | null };
+                .order('tanggal', { ascending: false }) as { data: Pick<Donasi, 'donatur_id' | 'nominal' | 'jadwal_safari_id' | 'tanggal'>[] | null };
 
             // Calculate totals per donatur and find last associated masjid
             const donasiMap = new Map<string, { total: number; count: number; last_masjid_id?: string }>();
-            donasiData?.forEach((d: any) => {
+            donasiData?.forEach((d: Pick<Donasi, 'donatur_id' | 'nominal' | 'jadwal_safari_id' | 'tanggal'>) => {
                 const existing = donasiMap.get(d.donatur_id) || { total: 0, count: 0, last_masjid_id: undefined };
                 donasiMap.set(d.donatur_id, {
                     total: existing.total + Number(d.nominal),
@@ -85,12 +96,12 @@ export default function DonaturPage() {
             const { data: jadwalData } = await supabase
                 .from('jadwal_safari')
                 .select('*')
-                .order('tanggal', { ascending: false }) as { data: any[] | null };
+                .order('tanggal', { ascending: false }) as { data: JadwalSafari[] | null };
             setJadwalList(jadwalData || []);
 
-            const jadwalMap = new Map((jadwalData || []).map((j: any) => [j.id, j]));
+            const jadwalMap = new Map((jadwalData || []).map((j: JadwalSafari) => [j.id, j]));
 
-            const donaturWithHistory: DonaturWithHistory[] = (donaturData || []).map((d: any) => {
+            const donaturWithHistory: DonaturWithHistory[] = (donaturData || []).map((d: Donatur) => {
                 const donMap = donasiMap.get(d.id);
                 // Use donatur's explicit jadwal_safari_id, OR fallback to the last donasi's masjid
                 const activeMasjidId = d.jadwal_safari_id || donMap?.last_masjid_id;
@@ -122,16 +133,16 @@ export default function DonaturPage() {
                 .from('donasi')
                 .select('*')
                 .eq('donatur_id', donaturId)
-                .order('tanggal', { ascending: false }) as { data: any[] | null };
+                .order('tanggal', { ascending: false }) as { data: Donasi[] | null };
 
             const { data: jadwalData } = await supabase
                 .from('jadwal_safari')
-                .select('*') as { data: any[] | null };
+                .select('*') as { data: JadwalSafari[] | null };
 
-            const jadwalMap = new Map((jadwalData || []).map((j: any) => [j.id, j]));
+            const jadwalMap = new Map((jadwalData || []).map((j: JadwalSafari) => [j.id, j]));
 
             setDonaturDonasi(
-                (donasiData || []).map((d: any) => ({
+                (donasiData || []).map((d: Donasi) => ({
                     ...d,
                     jadwal_safari: jadwalMap.get(d.jadwal_safari_id),
                 }))
@@ -152,7 +163,7 @@ export default function DonaturPage() {
             };
 
             if (editItem) {
-                const { error } = await (supabase.from('donatur') as any)
+                const { error } = await (supabase.from('donatur') as unknown as DonaturTable)
                     .update(submitData)
                     .eq('id', editItem.id);
                 if (error) throw error;
@@ -165,7 +176,7 @@ export default function DonaturPage() {
                     showConfirmButton: false,
                 });
             } else {
-                const { error } = await (supabase.from('donatur') as any)
+                const { error } = await (supabase.from('donatur') as unknown as DonaturTable)
                     .insert(submitData);
                 if (error) throw error;
 
@@ -181,12 +192,13 @@ export default function DonaturPage() {
             setEditItem(null);
             resetForm();
             fetchDonatur();
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Error saving donatur:', error);
+            const message = error instanceof Error ? error.message : 'Terjadi kesalahan';
             Swal.fire({
                 icon: 'error',
                 title: 'Gagal!',
-                text: 'Terjadi kesalahan: ' + error.message,
+                text: 'Terjadi kesalahan: ' + message,
             });
         }
     };
@@ -229,12 +241,13 @@ export default function DonaturPage() {
                     showConfirmButton: false
                 });
                 fetchDonatur();
-            } catch (error: any) {
+            } catch (error: unknown) {
                 console.error('Error deleting donatur:', error);
+                const message = error instanceof Error ? error.message : 'Gagal menghapus donatur.';
                 Swal.fire({
                     icon: 'error',
                     title: 'Gagal!',
-                    text: 'Gagal menghapus donatur.',
+                    text: message,
                 });
             }
         }
@@ -245,7 +258,7 @@ export default function DonaturPage() {
         fetchDonaturDetail(donaturId);
     };
 
-    const handleCetakKuitansi = (donasi: (typeof donaturDonasi)[0]) => {
+    const handleCetakKuitansi = async (donasi: (typeof donaturDonasi)[0]) => {
         const donatur = selectedDonatur;
         if (!donatur) return;
         const kuitansiData: KuitansiData = {
@@ -262,7 +275,7 @@ export default function DonaturPage() {
                 },
             ],
         };
-        generateKuitansiPdf(kuitansiData, `kuitansi-${donatur.nama.replace(/\s+/g, '-')}-${donasi.tanggal}.pdf`);
+        await generateKuitansiPdf(kuitansiData, `kuitansi-${donatur.nama.replace(/\s+/g, '-')}-${donasi.tanggal}.pdf`, '/logo.png');
     };
 
     const resetForm = () => {
@@ -385,7 +398,7 @@ export default function DonaturPage() {
                         </div>
                     ) : (
                         <div className="flex flex-col gap-3">
-                            {filteredList.map((item, index) => (
+                            {filteredList.map((item) => (
                                 <div
                                     key={item.id}
                                     className="bg-white border border-dark-100 rounded-2xl p-4 flex flex-col md:flex-row md:items-center gap-3 md:gap-4"
@@ -437,7 +450,7 @@ export default function DonaturPage() {
                                         {item.catatan && (
                                             <div className="mt-1 flex items-center gap-1">
                                                 <span className="w-1.5 h-1.5 rounded-full bg-orange-400 shrink-0"></span>
-                                                <p className="text-[10px] text-dark-500 truncate italic">"{item.catatan}"</p>
+                                                <p className="text-[10px] text-dark-500 truncate italic">&quot;{item.catatan}&quot;</p>
                                             </div>
                                         )}
                                     </div>
