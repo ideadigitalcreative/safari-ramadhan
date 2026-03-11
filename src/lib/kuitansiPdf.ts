@@ -101,8 +101,9 @@ const MARGIN = 14;
 
 const LOGO_LEFT_WIDTH = 28;
 const LOGO_LEFT_HEIGHT = 14;
-// Logo kanan proporsional (aspect ratio 1:1 agar tidak gepeng)
-const LOGO_RIGHT_SIZE = 14;
+// Logo kanan: tinggi lebih besar dari lebar agar tidak gepeng (rasio ~1 : 1.2)
+const LOGO_RIGHT_WIDTH = 10;
+const LOGO_RIGHT_HEIGHT = 14;
 
 /**
  * Generate dan download PDF kuitansi untuk donatur.
@@ -139,9 +140,9 @@ export async function generateKuitansiPdf(
     if (logoBase64) {
         doc.addImage(logoBase64, 'PNG', MARGIN, y, LOGO_LEFT_WIDTH, LOGO_LEFT_HEIGHT);
     }
-    // Logo kanan: Merdeka Waqaf (gambar proporsional 1:1 atau fallback teks)
+    // Logo kanan: Merdeka Waqaf (lebar lebih kecil agar tidak gepeng)
     if (logoRightBase64) {
-        doc.addImage(logoRightBase64, 'PNG', pageW - MARGIN - LOGO_RIGHT_SIZE, y, LOGO_RIGHT_SIZE, LOGO_RIGHT_SIZE);
+        doc.addImage(logoRightBase64, 'PNG', pageW - MARGIN - LOGO_RIGHT_WIDTH, y, LOGO_RIGHT_WIDTH, LOGO_RIGHT_HEIGHT);
     } else {
         doc.setTextColor(0, 128, 0);
         doc.setFontSize(10);
